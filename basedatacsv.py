@@ -7,8 +7,145 @@ import urllib3
 import time
 from datetime import date
 from pip._vendor.html5lib.filters.sanitizer import data_content_type
+from test.test_socket import ConnectedStreamTestMixin
 
 # * * * * * * * * * * * * * * * *
+class Lot:
+	def __init__( self, numSharesToSell = 0.00, pricePerShare=0.00, soldDate = None ):	
+		self.thisLot = dict()
+		self.thisLot['numShares'] = numSharesToSell
+		self.thisLot['pricePerShare'] = pricePerShare
+		# thisLot['proceeds'] = numSharesToSell * pricePerShare
+	
+	def __str__(self):
+		return json.dumps(self.thisLot)
+
+	def proceeds(self):
+		return float(self.thisLot['numShares'] * self.thisLot['pricePerShare'])
+	
+class Entry:
+	
+	def __init__( self, entry = None):
+	
+		if isinstance( entry, list ):
+			theEntry = dict()
+			theEntry['entryDate'] = entry[0]
+			theEntry['entryType'] = entry[1]
+			theEntry['entrySecurity'] = entry[2]
+			theEntry['entrySymbol'] = entry[3]
+			theEntry['entryDescription'] = entry[4]
+			theEntry['entryShares'] = entry[5]
+			theEntry['entryAmount'] = entry[6]
+			theEntry['entryAccount'] = entry[7]
+			
+			if entry[1] == 'Buy' or entry[1] == 'Add Shares':
+				theEntry['entryRemainingShares'] = float(entry[5].replace(',',''))
+			else:
+				theEntry['entryRemainingShares'] = 0.00
+			
+			self.entry = theEntry
+			self.soldLots = []
+			
+			# print('The Entry:' + str( self.entry))
+	
+	def __str__(self) :
+		return 'Entry:' + str(self.entry) 
+	
+	def description(self):
+		# print(self.entry['entryDescription'])
+		return self.entry['entryDescription']
+	
+	def security(self):
+		return self.entry['entrySecurity']
+	
+	def symbol(self):
+		return self.entry['entrySymbol']
+		
+	def price_per_share(self):
+		# this is a befuddled way of calculating since quicken puts it in the
+		# description
+		myDescription = self.description()
+		myWordList = myDescription.split(' ')
+		if len(myWordList) != 4:
+			print('Error - Unexpected Result from description:' + myDescription + ' Len[' + str(len(myWordList)) + ']')
+			return 0.00
+		
+		# print(str(myWordList))
+		ppsStr = myWordList[3]
+		ppsStr.lstrip()
+		# print('[' + ppsStr + '][' + str(float(ppsStr)) + ']')
+		
+		return float(ppsStr.replace(',',''))
+		
+	def shares(self):
+		myShares = self.entry.get('entryShares')
+		return float(myShares.replace(',',''))
+
+	def remainingShares(self):
+		return self.numShares()
+	
+	def numShares(self):
+		myShares = float(self.entry.get('entryRemainingShares'))
+		 
+		if (myShares > 0.00):
+			return myShares
+		else:
+			return 0.00
+
+	def type(self):
+		return self.entry.get('entryType')
+	
+	def dividendPaid(self):
+		type =  self.type()
+		amt = 0.00
+		
+		if  type == 'Dividend Income' or type == 'Reinvest Dividend' or type == 'Return of Capital':
+			amt = self.amount()	
+		
+		return amt
+
+	def amount(self):
+		sAmount = self.entry.get('entryAmount')
+		# print('Entry Amount:' + sAmount)
+		return float( sAmount.replace(',',''))
+
+	def cost( self ) :
+		amt = 0.00
+		type =  self.theEntry.get('entryType')
+
+		if  type == 'Buy' and self.remainingShares() > 0:
+			amt = self.amount()
+		
+		return amt 
+	
+	def sellShares(self,numSharesToSell = 0.00, pricePerShare=0.00):
+		totalShares = self.remainingShares()
+		if  totalShares >= numSharesToSell:
+			# if there are 50 shares to sell 100 remaining shares, remove 50 and return 0 
+			# for the number of shares remaining to sell.
+			# partial or full sale
+			remainingShares = totalShares - numSharesToSell
+			thisLot = Lot(numSharesToSell, pricePerShare)
+			self.soldLots.append(thisLot)
+			self.entry['entryRemainingShares'] = str(remainingShares)
+			return 0.00 # no more shares remaining from sell
+		else:
+			# there are 50 shares remaining and 100 to sell, remove the 50 and
+			# return there are 50 more to sell.
+			remainingShares = numSharesToSell - totalShares
+			thisLot = Lot(totalShares, pricePerShare)
+			self.soldLots.append(thisLot)
+			self.entry['entryRemainingShares'] = str(0.00)
+			return round(remainingShares,4)
+		
+	def splitShares(self, oldShares=1.00, newShares=1.00, symbol=None):
+		if self.remainingShares() <= 0:
+			return # no shares remaining
+		
+		newRemainingShares =  ( float(self.remainingShares()) / oldShares ) * newShares; 
+		self.entry['entryRemainingShares'] = str(newRemainingShares)
+		# print('New Remaining Shares[' + self.entry['entryRemainingShares'] + ']')
+		
 
 class Account:
 
@@ -17,10 +154,19 @@ class Account:
 		if name == None or entry == None:
 			print ('missing data')
 			return
+		
 		self.name = name
 		self.entries = [] # dict()
-		self.entries.append(entry)
-		# print ('account[' + name + '] added entry:' + str(entry) )
+		
+		if entry != None:
+			myEntry = Entry(entry)
+			if myEntry.type() != 'Buy' and myEntry.type() != 'Add Shares' and myEntry.type() != 'Return of Capital' and myEntry.type() != 'Dividend Income' :
+				print ('WARNING: FIRST ENTRY NOT A BUY[' + name + '] [' + myEntry.symbol() + '] [' + myEntry.type() + ']' )
+				print ( str(myEntry))
+				
+			self.entries.append(myEntry)
+
+		self.current_shares = 0 #FFU
 
 	def __str__(self) :
 		return 'Account:' + self.name 
@@ -34,12 +180,42 @@ class Account:
 		for e in self.entries:
 			print( 'Entry:' +  str(i) + ':' + str(e))
 			i = i + 1
+			for lot in e.soldLots:
+				print('Lot:' + str(lot) + 'p:' + str(lot.proceeds()))
 
 	def addEntry( self, entry ):
 		if isinstance( entry, list ):
-			self.entries.append(entry)
-			# print ('account[' + self.name + '] added entry:' + str(entry) )
-			# self.printEntries()
+			myEntry = Entry(entry)
+			
+			if myEntry.type() == 'Sell':
+				# print('Got a sell:' + str(myEntry))
+				sellShares = abs(myEntry.shares())
+				# print ('Selling ' + str(sellShares) + ' Shares')
+				pps = myEntry.price_per_share()
+				
+				for e in self.entries:
+					if e.type() == 'Buy' or e.type() == 'Add Shares':
+						sellShares = e.sellShares(sellShares,pps)
+						# print ('Remaining ' + str(sellShares))
+						if sellShares <= 0.00:
+							break # for
+
+				if sellShares > 0.00:
+					print('WARNING SHARES [' + myEntry.type() + '] WITHOUT Buy ' + str(sellShares) + ' ' + myEntry.symbol())				
+			
+			elif myEntry.type() == 'Stock Split':
+				# 
+				wordList = myEntry.description().split()
+				# print(str(wordList))
+				newShares = wordList[0]
+				oldShares = wordList[2]
+				for e in self.entries:
+					e.splitShares(float(oldShares),float(newShares))
+			elif myEntry.type() == 'Remove Shares':
+				
+			else:						
+				self.entries.append(myEntry)
+
 		else:
 			print( 'ERROR: entry is not a list' )
 
@@ -47,9 +223,7 @@ class Account:
 		total = 0.00
 		for e in self.entries:	
 			# print ( 'e5=' +  e[5] )
-			if  str(e[5]) == 'None' or str(e[5]) == "" :
-				continue
-			shares = float( e[5].replace(',',''))
+			shares = e.numShares()
 			total = total + shares
 			# print ( total, shares )
 	
@@ -58,30 +232,29 @@ class Account:
 	def dividends_paid( self ):
 		total = 0.00
 		for e in self.entries:
-			type = e[1]
-			if  type == 'Dividend Income' or type == 'Reinvest Dividend' or type == 'Return of Capital':
-				amt = float( e[6].replace(',',''))
-				total = total + amt
+			total = total + e.dividendPaid()
 
 		return round(total,2)
 
 	def cost( self ) :
 		total = 0.00
 		for e in self.entries:
-			type = e[1]
+			type = e.type()
 			if  type == 'Buy':
-				amt = float( e[6].replace(',',''))
-				total = total + amt
+				if e.numShares() > 0:
+					# print('Account ' + self.name + ' Entry Cost ' + str(e.amount()))
+					total = total + e.amount()
 
+		# print('Total Account Cost:' + str(total))
 		return round(total,2)
 
 	def sold( self ) :
 		total = 0.00
 		for e in self.entries:
-			type = e[1]
-			if  type == 'Sold' or type == 'Short Sell':
-				amt = float( e[6].replace(',',''))
-				total = total + amt
+			type = e.type()
+			if  type == 'Sell' or type == 'Short Sell':
+				# print ('Acct Sold:' + str(e.amount()))
+				total = total + e.amount()
 
 		return round(total,2)
 
@@ -101,7 +274,7 @@ class Ticker:
 		self.addAccount( entry )
 
 	def __str__(self) :
-		return 'Ticker:' + self.symbol + ' ' + self.name + ' ' + str(self.numShares()) + ' ' + str(self.current_dividend()) + ' ' + str(self.dividend_next12mo()) + ' ' + str(self.quote())
+		return 'Ticker:' + self.symbol + ' ' + self.name + ' ' + str(self.numShares()) + ' ' + str(self.current_dividend()) + ' ' + str(self.dividend_next12mo()) + ' ' + str(self.latest_price())
 
 	def addAccount(self, entry ):
 		acct_name = row[7]
@@ -313,12 +486,11 @@ def createSheet( symbols, acct_list ):
 
 		thisRow['Dividends Received'] = t.dividends_paid()
 
-		total_cost = t.cost()
-		thisRow['Total Cost'] = total_cost;
+		thisRow['Total Cost'] = abs(t.cost());
 		
 		thisRow['Total Sold'] = t.sold()
 
-		thisRow['Average Price'] = round( (abs(total_cost) / total_shares), 3 )
+		thisRow['Average Price'] = round( (abs(t.cost()) / total_shares), 3 )
 
 		thisRow['Current Dividend'] = t.current_dividend()
 		
@@ -351,10 +523,15 @@ if __name__ == "__main__":
 		# print(len(row),row[3])
 
 		s = row[3]
+		
+		if s != 'FCNTX': # and s != 'UNP':
+		 	continue
+		
 		if s == str(None) or s == "Missing" or s == "DEAD" or s == 'Symbol' :
 			continue
 
 		t = symbols.get(s)
+		
 		if t == None:
 			#
 			# create the ticker, add the account, add the row
@@ -382,3 +559,4 @@ if __name__ == "__main__":
 
 	# text = commonRequestCall('https://api.iextrading.com/1.0/stock/psec/dividends/1y', disable_warnings=False,  myTimeout=15.00):
 	# print(text)
+
