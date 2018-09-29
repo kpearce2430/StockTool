@@ -38,7 +38,7 @@ class Entry:
 			theEntry['entryAmount'] = entry[6]
 			theEntry['entryAccount'] = entry[7]
 			
-			if entry[1] == 'Buy' or entry[1] == 'Add Shares':
+			if entry[1] == 'Buy' or entry[1] == 'Add Shares' or entry[1] == 'Reinvest Dividend':
 				theEntry['entryRemainingShares'] = float(entry[5].replace(',',''))
 			else:
 				theEntry['entryRemainingShares'] = 0.00
@@ -79,7 +79,11 @@ class Entry:
 		
 	def shares(self):
 		myShares = self.entry.get('entryShares')
-		return float(myShares.replace(',',''))
+		# print('Shares ' + self.type() + ' [' + myShares + ']')
+		if myShares == "" or str(myShares) == 'None':
+			return 0.0000
+		else:
+			return float(myShares.replace(',',''))
 
 	def remainingShares(self):
 		return self.numShares()
@@ -157,16 +161,24 @@ class Account:
 		
 		self.name = name
 		self.entries = [] # dict()
+		self.pending = []
 		
-		if entry != None:
-			myEntry = Entry(entry)
-			if myEntry.type() != 'Buy' and myEntry.type() != 'Add Shares' and myEntry.type() != 'Return of Capital' and myEntry.type() != 'Dividend Income' :
-				print ('WARNING: FIRST ENTRY NOT A BUY[' + name + '] [' + myEntry.symbol() + '] [' + myEntry.type() + ']' )
-				print ( str(myEntry))
-				
-			self.entries.append(myEntry)
+		if isinstance(entry, list):
+			self.addEntry(entry)
 
-		self.current_shares = 0 #FFU
+		self.current_shares = 0
+		
+#
+#			myEntry = Entry(entry)
+#			
+#			if myEntry.type() != 'Buy' and myEntry.type() != 'Add Shares' and myEntry.type() != 'Return of Capital' and myEntry.type() != 'Dividend Income' :
+#				print ('WARNING: FIRST ENTRY NOT A BUY[' + name + '] [' + myEntry.symbol() + '] [' + myEntry.type() + ']' )
+#				print ( str(myEntry))
+#				
+#			self.entries.append(myEntry)
+#
+#		self.current_shares = 0 #FFU
+#
 
 	def __str__(self) :
 		return 'Account:' + self.name 
@@ -190,19 +202,29 @@ class Account:
 			if myEntry.type() == 'Sell':
 				# print('Got a sell:' + str(myEntry))
 				sellShares = abs(myEntry.shares())
-				# print ('Selling ' + str(sellShares) + ' Shares')
-				pps = myEntry.price_per_share()
+				curentShares = self.numShares()
+				if round(curentShares,4) >= round(sellShares,4) :
+					
+					# print ('Selling ' + str(sellShares) + ' Shares')
+					pps = myEntry.price_per_share()
 				
-				for e in self.entries:
-					if e.type() == 'Buy' or e.type() == 'Add Shares':
-						sellShares = e.sellShares(sellShares,pps)
-						# print ('Remaining ' + str(sellShares))
-						if sellShares <= 0.00:
-							break # for
+					for e in self.entries:
+						if e.type() == 'Buy' or e.type() == 'Add Shares':
+							sellShares = e.sellShares(sellShares,pps)
+							# print ('Remaining ' + str(sellShares))
+							if sellShares <= 0.00:
+								break # for
 
-				if sellShares > 0.00:
-					print('WARNING SHARES [' + myEntry.type() + '] WITHOUT Buy ' + str(sellShares) + ' ' + myEntry.symbol())				
+					if sellShares > 0.0002:
+						print('WARNING SHARES [' + myEntry.type() + '] WITHOUT Buy ' + str(sellShares) + ' ' + myEntry.symbol())
+						print('Entry--> ' + str(myEntry))
+						return False				
 			
+				else:
+					# queue this entry until we have the shares
+					# print('Queuing Entry[' + str(myEntry) + ']' + 'Sell: ' + str(sellShares))
+					self.pending.append(entry)
+					
 			elif myEntry.type() == 'Stock Split':
 				# 
 				wordList = myEntry.description().split()
@@ -211,14 +233,60 @@ class Account:
 				oldShares = wordList[2]
 				for e in self.entries:
 					e.splitShares(float(oldShares),float(newShares))
+					
 			elif myEntry.type() == 'Remove Shares':
+				removeShares = abs(myEntry.shares())
+				currentShares = self.numShares()
+				if round(currentShares,4) >= round(removeShares,4):
+					# we can go ahead.  
+					for e in self.entries:
+						removeShares = e.sellShares(removeShares)
+						if removeShares <= 0:
+							break # for
+						
+					if removeShares > 0.00:
+						print('WARNING SHARES [' + myEntry.type() + '] WITHOUT Buy ' + str(removeShares) + ' ' + myEntry.symbol())
+						return False
+									
+				else: 
+					# queue this entry until we have the shares
+					# print('Queuing Entry[' + str(myEntry) + ']')
+					self.pending.append(entry)
 				
-			else:						
+			else:
+										
 				self.entries.append(myEntry)
+				# print('Current ' + myEntry.symbol() + ',' + myEntry.type() + ',' + str(myEntry.shares()) + ' shares:' + str(self.numShares()) + ' pend: ' + str(self.totalPending()))
+
 
 		else:
 			print( 'ERROR: entry is not a list' )
+			return False
 
+
+		if  (myEntry.type() == 'Buy' or myEntry.type() == 'Add Shares') and self.numShares() > self.totalPending():
+			self.clearPending()
+
+		return True
+
+	def totalPending(self):
+		total = 0.00
+		for p in self.pending:
+			total = total + abs(float(p[5].replace(',','')))
+		# print('Pending: ' + str(total))
+		return total
+
+	def clearPending(self):
+		while len(self.pending) > 0:
+			e = self.pending[0]
+			if self.addEntry(e):
+				self.pending.remove(e)
+				# print('Current ' + e[3] + ' shares:' + str(self.numShares()))
+			else:
+				print("ERROR Processing Pending Entry" + str(e))
+				return
+				
+			
 	def numShares( self ):
 		total = 0.00
 		for e in self.entries:	
@@ -281,12 +349,16 @@ class Ticker:
 		a = self.accounts.get(acct_name) 
 		if a == None:
 			# print( "added acct name:" + acct_name )
-			myAcct = Account(acct_name, entry )
-			self.accounts[acct_name] = myAcct
+			a = Account(acct_name, entry )
+			self.accounts[acct_name] = a
 		else:
 			# add the row
 			# print( "just adding row:" )
 			a.addEntry( entry )
+		
+			
+		# if  a.numShares() > a.totalPending():
+		#	self.clearPending()
 
 	def printAccounts( self ):
 		for key, acct in self.accounts.items():
@@ -329,6 +401,11 @@ class Ticker:
 
 		return round(total,2)
 
+	def clearPending(self):
+		for key, acct in self.accounts.items():
+			if acct.clearPending() != True:
+				return False
+			
 	# stock_ticker = self.symbol.lower()
 	# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/dividends/1y'
 	# url = 'https://api.iextrading.com/1.0./stock/' + stock_ticker + '/dividends/1y'
@@ -471,6 +548,12 @@ def createSheet( symbols, acct_list ):
 		
 		# print('Symbol: ' + key)
 		t  = symbols[key]
+		
+		# Since we can't guarantee the order of how the data is read, there is
+		# a case where there can be pending sells or remove shares.  Take care
+		# of those now.
+		t.clearPending()
+		
 		total_shares = t.numShares()
 		thisRow = dict()
 		if total_shares < .0001 :
@@ -524,8 +607,8 @@ if __name__ == "__main__":
 
 		s = row[3]
 		
-		if s != 'FCNTX': # and s != 'UNP':
-		 	continue
+		#if s != 'FCNTX': # and s != 'UNP':
+		# 	continue
 		
 		if s == str(None) or s == "Missing" or s == "DEAD" or s == 'Symbol' :
 			continue
@@ -553,10 +636,11 @@ if __name__ == "__main__":
 
 	unique_accounts.sort()
 	
-	# printSymbols( symbols) 
+	# printSymbols( symbols ) 
 	
 	createSheet(  symbols , unique_accounts )
-
+	# printSymbols(symbols)
+	
 	# text = commonRequestCall('https://api.iextrading.com/1.0/stock/psec/dividends/1y', disable_warnings=False,  myTimeout=15.00):
 	# print(text)
 
