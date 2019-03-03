@@ -1,7 +1,7 @@
 
 import csv
-import json
-import os
+# import json
+# import os
 import json
 import urllib3
 import time
@@ -45,7 +45,7 @@ class Entry:
 			
 			self.entry = theEntry
 			self.soldLots = []
-			
+
 			# print('The Entry:' + str( self.entry))
 	
 	def __str__(self) :
@@ -149,7 +149,12 @@ class Entry:
 		newRemainingShares =  ( float(self.remainingShares()) / oldShares ) * newShares; 
 		self.entry['entryRemainingShares'] = str(newRemainingShares)
 		# print('New Remaining Shares[' + self.entry['entryRemainingShares'] + ']')
-		
+
+	def entryDate(self):
+		date_elem = self.entry['entryDate'].split('/')
+		myDate = date(int(date_elem[2]),int(date_elem[0]),int(date_elem[1]))
+		return myDate
+
 
 class Account:
 
@@ -168,24 +173,15 @@ class Account:
 
 		self.current_shares = 0
 		
-#
-#			myEntry = Entry(entry)
-#			
-#			if myEntry.type() != 'Buy' and myEntry.type() != 'Add Shares' and myEntry.type() != 'Return of Capital' and myEntry.type() != 'Dividend Income' :
-#				print ('WARNING: FIRST ENTRY NOT A BUY[' + name + '] [' + myEntry.symbol() + '] [' + myEntry.type() + ']' )
-#				print ( str(myEntry))
-#				
-#			self.entries.append(myEntry)
-#
-#		self.current_shares = 0 #FFU
-#
 
 	def __str__(self) :
 		return 'Account:' + self.name 
 
+
 	def printAccount( self ):
 		print( self )
 		self.printEntries()
+
 
 	def printEntries( self ):
 		i = 0
@@ -195,11 +191,12 @@ class Account:
 			for lot in e.soldLots:
 				print('Lot:' + str(lot) + 'p:' + str(lot.proceeds()))
 
+
 	def addEntry( self, entry ):
 		if isinstance( entry, list ):
 			myEntry = Entry(entry)
 			
-			if myEntry.type() == 'Sell':
+			if myEntry.type() == 'Sell' or myEntry.type() == 'Short Sell':
 				# print('Got a sell:' + str(myEntry))
 				sellShares = abs(myEntry.shares())
 				curentShares = self.numShares()
@@ -326,6 +323,18 @@ class Account:
 
 		return round(total,2)
 
+	def firstBought(self):
+		theDate = date.today()
+		# print(theDate)
+		for e in self.entries:
+			if e.numShares() > 0:
+				myDate = e.entryDate()
+				if myDate < theDate:
+					# print("Setting date",myDate)
+					theDate = myDate
+
+		return theDate
+
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  
 class Ticker:
 
@@ -345,7 +354,7 @@ class Ticker:
 		return 'Ticker:' + self.symbol + ' ' + self.name + ' ' + str(self.numShares()) + ' ' + str(self.current_dividend()) + ' ' + str(self.dividend_next12mo()) + ' ' + str(self.latest_price())
 
 	def addAccount(self, entry ):
-		acct_name = row[7]
+		acct_name = entry[7]
 		a = self.accounts.get(acct_name) 
 		if a == None:
 			# print( "added acct name:" + acct_name )
@@ -463,6 +472,8 @@ class Ticker:
 				return self.dividend_data
 			elif req_type == 'close':
 				return self.close_data
+			elif req_type == 'earnings':
+				return self.earnings
 			else:
 				print('ERROR Invalid Type:' + req_type)
 			return None
@@ -471,10 +482,10 @@ class Ticker:
 		elif len(self.symbol) < 5:
 			#
 			# not a symbol we can get a quote on.
-			url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/batch?types=quote,stats,news,chart,dividends,close&range=1y&last=3'
+			url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/batch?types=quote,stats,earnings,news,chart,dividends,close&range=1y&last=3'
 			#
 			# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/quote'
-			r = http.request('GET',url)
+			r = self.http.request('GET',url)
 			
 			if r.status == 200:
 				myData = json.loads(r.data.decode('utf-8'))
@@ -485,6 +496,7 @@ class Ticker:
 					self.chart_data = myData.get('chart')
 					self.dividend_data = myData.get('dividends')
 					self.close_data = myData.get('close')
+					self.earnings = myData.get('earnings')
 					return self.get_data(req_type)
 				else:
 					print('Not JSON Format')
@@ -498,7 +510,10 @@ class Ticker:
 		self.dividend_data = None
 		self.close_data = None
 		return None
-			
+
+	def get_earnings(self):
+		return self.get_data('earnings')
+
 	def get_quote(self):	
 		return self.get_data('quote_data')
 		
@@ -519,7 +534,44 @@ class Ticker:
 	
 	def net(self):
 		return round(float(self.totalValue()) + float(self.cost()),2)
-	
+
+	def lastest_eps(self):
+		earnings = self.get_earnings()
+		# print("Here:", self.name,":",earnings)
+
+		if earnings == None:
+			return None
+
+		myearnings = earnings.get('earnings')
+
+		if myearnings != None:
+			lastest_earnings = myearnings[0]
+			actualEPS = lastest_earnings.get('actualEPS')
+			if actualEPS != None:
+				return actualEPS
+			else:
+				consensusEPS = lastest_earnings.get('consensusEPS')
+				if consensusEPS != None:
+					print("Missing actualEPS",self.name,myearnings)
+					return consensusEPS
+				else:
+					print("Missing consensusEPS",self.name,myearnings)
+					return 0.00
+
+		else:
+			print("Missing earnings ", self.name)
+			return None
+
+	def firstBought(self):
+		theDate = date.today()
+		for key, acct in self.accounts.items():
+			myDate = acct.firstBought()
+			if myDate < theDate:
+				theDate = myDate
+				# print("ticker setting date",theDate)
+
+		return theDate
+
 #				
 # * * * * * * * * * * * 
 #
@@ -534,15 +586,15 @@ def printSymbols( symbols ):
 #
 #
 #
-def createSheet( symbols, acct_list ):
+def createSheet( symbols, acct_list, details ):
 
-	allRows = []
+	# allRows = []
 
 	header = 'Name,Symbol,Total Shares' 
 	for a in acct_list:
 		header = header + ',' + a
 
-	print(header)
+	 # print(header)
 
 	for key, value in symbols.items():
 		
@@ -556,7 +608,7 @@ def createSheet( symbols, acct_list ):
 		
 		total_shares = t.numShares()
 		thisRow = dict()
-		if total_shares < .0001 :
+		if total_shares < .001 :
 			continue
 
 		thisRow['Name'] = t.name
@@ -567,11 +619,15 @@ def createSheet( symbols, acct_list ):
 
 		thisRow['Total Shares'] = total_shares;
 
+		thisRow['Latest Price'] = t.latest_price()
+
+		thisRow['Total Value'] = t.totalValue()
+
 		thisRow['Dividends Received'] = t.dividends_paid()
 
 		thisRow['Total Cost'] = abs(t.cost());
 		
-		thisRow['Total Sold'] = t.sold()
+		# thisRow['Total Sold'] = t.sold()
 
 		thisRow['Average Price'] = round( (abs(t.cost()) / total_shares), 3 )
 
@@ -579,17 +635,56 @@ def createSheet( symbols, acct_list ):
 		
 		thisRow['Yearly Dividend'] = t.dividend_next12mo()
 		
-		thisRow['Latest Price'] = t.latest_price()
-		
-		thisRow['Total Value'] = t.totalValue()
-		
 		thisRow['Net'] = t.net()
 
-		print(str(thisRow))
+		thisRow['Latest EPS'] = t.lastest_eps()
+
+		theDate = t.firstBought()
+		thisRow['First Purchase'] = theDate.strftime('%m/%d/%Y')
+
+		today = date.today()
+		dateDelta = today - theDate
+		thisRow['Days Owned'] = dateDelta.days
+
+		# print(str(thisRow))
 		
-		allRows.append(thisRow)
+		details.append(thisRow)
 
 
+def ProcessRow(row, symbols, accounts, http):
+
+	if isinstance(row, list):
+
+		s = row[3]
+
+		# if s != 'CDC': # and s != 'UNP':
+		#	return
+
+		if s == str(None) or s == "Missing" or s == "DEAD" or s == 'Symbol':
+			return
+
+		t = symbols.get(s)
+
+		if t == None:
+			#
+			# create the ticker, add the account, add the row
+			t	 = Ticker(s, row, http)
+			symbols[s] = t
+			# print ("added:" + s )
+		else:
+			# print ("exists:" + s )
+			t.addAccount(row)
+
+		a = row[7]
+		try:
+			accounts.index(a)
+		except ValueError:
+			# print( 'adding account: ' + a )
+			accounts.append(a)
+
+
+# for i in unique_accounts:
+# 	print( i )
 
 if __name__ == "__main__":
 
