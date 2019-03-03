@@ -111,3 +111,6 @@ out
 .metadata/
 .project
 .pydevproject
+.*.swp
+*.json
+temp/
