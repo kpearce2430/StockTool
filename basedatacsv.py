@@ -462,7 +462,7 @@ class Ticker:
 		if hasattr(self, req_type):
 			if req_type == 'quote_data':
 				return self.quote_data
-			elif req_type == 'stats':
+			elif req_type == 'stats_data':
 				return self.stats_data
 			elif req_type == 'news':
 				return self.news_data
@@ -536,31 +536,36 @@ class Ticker:
 		return round(float(self.totalValue()) + float(self.cost()),2)
 
 	def lastest_eps(self):
-		earnings = self.get_earnings()
+		earnings = self.get_data('stats_data')
 		# print("Here:", self.name,":",earnings)
 
 		if earnings == None:
+			print(self.name," No earnings")
 			return None
 
-		myearnings = earnings.get('earnings')
-
+		myearnings = earnings.get('latestEPS')
+		print(self.name,' earnings:',myearnings)
 		if myearnings != None:
-			lastest_earnings = myearnings[0]
-			actualEPS = lastest_earnings.get('actualEPS')
-			if actualEPS != None:
-				return actualEPS
-			else:
-				consensusEPS = lastest_earnings.get('consensusEPS')
-				if consensusEPS != None:
-					print("Missing actualEPS",self.name,myearnings)
-					return consensusEPS
-				else:
-					print("Missing consensusEPS",self.name,myearnings)
-					return 0.00
-
+			return myearnings
 		else:
-			print("Missing earnings ", self.name)
+			print("Missing LastestEPS:", self.name, ":", earnings)
 			return None
+#			lastest_earnings = myearnings[0]
+#			actualEPS = lastest_earnings.get('latestEPS')
+#			if actualEPS != None:
+#				return actualEPS
+#			else:
+#				consensusEPS = lastest_earnings.get('consensusEPS')
+#				if consensusEPS != None:
+#					print("Missing actualEPS",self.name,myearnings)
+#					return consensusEPS
+#				else:
+#					print("Missing consensusEPS",self.name,myearnings)
+#					return 0.00
+#
+#		else:
+#			print("Missing earnings ", self.name)
+#			return None
 
 	def firstBought(self):
 		theDate = date.today()
