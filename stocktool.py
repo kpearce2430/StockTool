@@ -5,6 +5,7 @@ import xlsxwriter
 import basedatacsv as bdata
 import urllib3
 
+
 def LoadLookup(name, lookup):
     lookupReader = csv.reader(open(name,newline=''),delimiter=',', quotechar='"')
     for row in lookupReader:
@@ -30,7 +31,7 @@ if __name__ == "__main__":
 
 
     # prepare the worksheet
-    basename = 'KP2013-export-2019-03-02'
+    basename = 'KP2013-export-2019-04-28'
     infilename = basename + '.csv'
     outfilename = basename + '.xlsx'
 
@@ -149,26 +150,30 @@ if __name__ == "__main__":
 
     # First 2 columns are Name and Symbol
     myKeys = []
-    worksheet.write('A1','Name')
+    myColumn = xlsxwriter.utility.xl_col_to_name(0) + "1" # xl_col_to_name
+    worksheet.write(myColumn,'Name')
     myKeys.append('Name')
-    worksheet.write('B1','Symbol')
+
+    myColumn = xlsxwriter.utility.xl_col_to_name(1) + "1"
+    worksheet.write(myColumn,'Symbol')
     myKeys.append('Symbol')
 
+    myColumnNum = 2
     # Add in the individual accounts next
-    myOrd = ord('C')
+    # print(len(unique_accounts))
     for a in unique_accounts:
-        currentA = str(chr(myOrd)) + "1"
-        worksheet.write(currentA,a)
+        myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum) + "1"
+        # print("myColumn:",myColumn)
+        worksheet.write(myColumn,a)
         myKeys.append(a)
-        myOrd = myOrd + 1
+        myColumnNum = myColumnNum + 1
 
     # add in Total Shares
     myKeys.append('Total Shares')
-    currentA = str(chr(myOrd)) + "1"
-    worksheet.write(currentA, 'Total Shares')
-    totalSharesCol = str(chr(myOrd))
-
-    myOrd = myOrd + 1
+    totalSharesCol = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+    myColumn = totalSharesCol + "1" # xl_col_to_name
+    worksheet.write(myColumn, 'Total Shares')
+    myColumnNum = myColumnNum + 1
 
     # go through ALL the details and pick up the remaining labels.
     for d in details:
@@ -180,30 +185,31 @@ if __name__ == "__main__":
                 continue
             except ValueError:
                 myKeys.append(k)
-                currentA = str(chr(myOrd)) + "1"
+                myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+                currentA = myColumn + "1"
                 worksheet.write(currentA, k)
 
                 if k == 'Latest Price':
-                    latestPriceCol = str(chr(myOrd))
+                    latestPriceCol = myColumn
                 elif k == 'Total Value':
-                    totalValueCol = str(chr(myOrd))
+                    totalValueCol = myColumn
                 elif k == 'Total Cost':
-                    totalCostCol = str(chr(myOrd))
+                    totalCostCol = myColumn
                 elif k == 'Yearly Dividend':
-                    yearlyDividendCol = str(chr(myOrd))
+                    yearlyDividendCol = myColumn
                 elif k == 'Days Owned':
-                    daysOwnedCol = str(chr(myOrd))
+                    daysOwnedCol = myColumn
                 elif k == 'Dividends Received':
-                    dividendsRecCol = str(chr(myOrd))
+                    dividendsRecCol = myColumn
 
-                myOrd = myOrd + 1
+                myColumnNum = myColumnNum + 1
                 # print("adding ",k)
 
 
     # push it out to the worksheet
     xRow = 2
     for d in details:
-        myOrd = ord('A')
+        myColumnNum = 0
 
         if d['Latest Price'] == 0:
             # print("Skipping ",d["Name"])
@@ -211,13 +217,15 @@ if __name__ == "__main__":
 
         for l in myKeys:
             v = d[l]
-            currentA = str(chr(myOrd)) + str(xRow)
+            myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+            currentA = myColumn + str(xRow)
             worksheet.write(currentA,v)
-            myOrd = myOrd + 1
+            myColumnNum = myColumnNum + 1
 
         xRow = xRow + 1
 
-    stockOrd = myOrd
+    stockOrd = myColumnNum
+
     # worksheet = workbook.add_worksheet('Fund Analysis')
 
     # xRow = 2
@@ -227,8 +235,13 @@ if __name__ == "__main__":
     #    worksheet.write(currentA,k)
     #    myOrd = myOrd + 1
 
+    #  This section writes out the stocks and funds that did not get a price
+    #  from the lookup.
+    #
     for d in details:
-        myOrd = ord('A')
+        myColumnNum = 0
+
+        # myOrd = ord('A')
 
         if d['Latest Price'] != 0:
             # print("Skipping",d['Name'])
@@ -236,7 +249,8 @@ if __name__ == "__main__":
 
         for l in myKeys:
             v = d[l]
-            currentA = str(chr(myOrd)) + str(xRow)
+            myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+            currentA = myColumn + str(xRow)
 
             if l == 'Total Value':
                 formula = "=" + totalSharesCol + str(xRow) + "*" + latestPriceCol + str(xRow)
@@ -248,75 +262,104 @@ if __name__ == "__main__":
             else:
                 worksheet.write(currentA, v)
 
-            myOrd = myOrd + 1
+            myColumnNum = myColumnNum + 1
 
         xRow = xRow + 1
 
-    if myOrd == ord('A'):
-        myOrd = stockOrd
+
+    #
+    #  If the last section didn't have any entries, myColumnNum will be 0
+    #  reset it to the last value of the previous section.
+    if myColumnNum == 0:
+        myColumnNum = stockOrd
+    #else
+    #    stockOrd = myColumnNum
 
     # add the formulas for
     # ... Percentage of the Portfolio
 
     percent_fmt = workbook.add_format({'num_format': '0.00%'})
 
-    currentA = str(chr(myOrd)) + "1"
+    myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+    currentA = myColumn + "1"
     worksheet.write(currentA,'Percentage Portfolio')
-    currentA= str(chr(myOrd)) + ":" + str(chr(myOrd))
+
+    currentA= myColumn + ":" + myColumn
     worksheet.set_column( currentA, None, percent_fmt)
     # print(str(chr(myOrd)),xRow)
 
-    currentA = str(chr(myOrd+1)) + "1"
+    # myColumnNum = myColumnNum+1
+    myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+1)
+    currentA = myColumn + "1"
     worksheet.write(currentA,'Dividend Yield')
-    currentA= str(chr(myOrd+1)) + ":" + str(chr(myOrd+1))
+    currentA= myColumn + ":" + myColumn
     worksheet.set_column( currentA, None, percent_fmt)
     # print(str(chr(myOrd+1)),xRow)
 
-    currentA = str(chr(myOrd+2)) + "1"
+    # myColumnNum = myColumnNum + 1
+    myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+2)
+    currentA = myColumn + "1"
     worksheet.write(currentA,'ROI')
-    currentA= str(chr(myOrd+2)) + ":" + str(chr(myOrd+2))
+    currentA= myColumn + ":" + myColumn
     worksheet.set_column( currentA, None, percent_fmt)
     # print(str(chr(myOrd+2)),xRow)
 
-    currentA = str(chr(myOrd+3)) + "1"
+    # myColumnNum = myColumnNum + 1
+    myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+3)
+    currentA = myColumn + "1"
     worksheet.write(currentA,'Annual Return')
-    currentA= str(chr(myOrd+3)) + ":" + str(chr(myOrd+3))
+    currentA= myColumn + ":" + myColumn
     worksheet.set_column( currentA, None, percent_fmt)
     # print(str(chr(myOrd+3)),xRow)
 
-    currentA = str(chr(myOrd+4)) + "1"
+    # myColumnNum = myColumnNum + 1
+    myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+4)
+    currentA = myColumn + "1"
     worksheet.write(currentA,'CAGR')
-    currentA= str(chr(myOrd+4)) + ":" + str(chr(myOrd+4))
+    currentA= myColumn + ":" + myColumn
     worksheet.set_column( currentA, None, percent_fmt)
-    print(str(chr(myOrd+4)),xRow)
+    print(myColumn,xRow)
 
+    # myColumnNum = stockOrd
     for i in range(2,xRow):
-        currentA =  str(chr(myOrd)) + str(i)
+
+        myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+        currentA = myColumn + str(i)
+
         currentB =  totalValueCol + str(i)
         formula = '=' + currentB + '/ (SUM($' + totalValueCol + "$2:$" + totalValueCol + "$" + str(xRow-1) + "))"
         # print(formula)
         worksheet.write_formula(currentA,formula)
 
         #IF(K48>0,R48/K48,0)
-        currentA =  str(chr(myOrd+1)) + str(i)
+        myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+1)
+        currentA = myColumn + str(i)
+
         formula = "=if(" + yearlyDividendCol + str(i) + "> 0 ," + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) + ",0)"
         worksheet.write_formula(currentA,formula)
 
-        currentA = str(chr(myOrd+2)) + str(i)
+        # IF ( Cost > 0 , totalvalue - total cost / total cost ) / 0
+        myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+2)
+        currentA = myColumn + str(i)
+
         formula = "=if(" + totalCostCol + str(i) + ">0,(" + totalValueCol + str(i) + "-" + totalCostCol + str(i) + ") / " + totalCostCol + str(i) + ", 0)"
         worksheet.write_formula(currentA,formula)
 
         # =if(n2>0,POWER((L2/N2),(365/U2))-1,0)
-        currentA = str(chr(myOrd+3)) + str(i)
+        myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+3)
+        currentA = myColumn + str(i)
+
         formula = "=if(" + totalCostCol + str(i) + ">0,power((" + totalValueCol + str(i) + "/" + totalCostCol + str(i) + "),(365 / " + daysOwnedCol + str(i) + "))-1, 0)"
         worksheet.write_formula(currentA,formula)
 
         # =IF(N37>0,POWER(((L37+M37)/N37),(365/U37))-1,0)
-        currentA = str(chr(myOrd+4)) + str(i)
+        myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum+4)
+        currentA = myColumn + str(i)
+
         formula = "=if(" + totalCostCol + str(i) + ">0,power(((" + totalValueCol + str(i) + "+" + dividendsRecCol + str(i) + ")/" + totalCostCol + str(i) + "),(365 / " + daysOwnedCol + str(i) + "))-1,0)"
         # print(formula)
         worksheet.write_formula(currentA,formula)
 
 
-    print(chr(myOrd+4),myOrd+4)
+    print(currentA)
     workbook.close()
