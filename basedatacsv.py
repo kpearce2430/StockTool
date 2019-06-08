@@ -350,6 +350,10 @@ class Ticker:
 		self.http = http
 		self.addAccount( entry )
 
+	def worksheetName(self):
+		# assert isinstance(self.name, s)
+		return self.symbol + ' ' + self.name
+
 	def __str__(self) :
 		return 'Ticker:' + self.symbol + ' ' + self.name + ' ' + str(self.numShares()) + ' ' + str(self.current_dividend()) + ' ' + str(self.dividend_next12mo()) + ' ' + str(self.latest_price())
 
