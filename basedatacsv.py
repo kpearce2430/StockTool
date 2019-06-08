@@ -47,7 +47,13 @@ class Entry:
 			self.soldLots = []
 
 			# print('The Entry:' + str( self.entry))
-	
+
+	def Field(self,field):
+		# if hasattr(self.entry,field):
+			return str(self.entry[field])
+		# else:
+		#	return "Missing"
+
 	def __str__(self) :
 		return 'Entry:' + str(self.entry) 
 	
@@ -177,6 +183,8 @@ class Account:
 	def __str__(self) :
 		return 'Account:' + self.name 
 
+	def Name(self):
+		return self.name
 
 	def printAccount( self ):
 		print( self )
