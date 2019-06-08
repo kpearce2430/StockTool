@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
 
     # prepare the worksheet
-    basename = 'KP2013-export-2019-04-28'
+    basename = 'KP2019-export-2019-06-08'
     infilename = basename + '.csv'
     outfilename = basename + '.xlsx'
 
@@ -104,8 +104,8 @@ if __name__ == "__main__":
            value = "Missing"
            # print("Missing",row[5])
 
-        # if value != 'CDC':
-        #     continue;
+        if value != 'HD':
+             continue;
         # else:
         #     print(row)
 
@@ -361,5 +361,22 @@ if __name__ == "__main__":
         worksheet.write_formula(currentA,formula)
 
 
-    print(currentA)
+    # print(currentA)
+    # workbook.close()
+
+    for key, value in symbols.items():
+        print('Symbol: ' + key)
+
+        t = symbols[key]
+        print(str(t))
+        worksheet = workbook.add_worksheet(t.worksheetName())
+        for key, acct in t.accounts.items():
+            print(str(acct))
+
+            for e in acct.entries:
+                print("e:",str(e))
+    # print( 'key:' +  key  + 'value:' + str(acct))
+
+    # print(currentA)
     workbook.close()
+    # bdata.printSymbols(symbols)
