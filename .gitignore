@@ -114,3 +114,6 @@ out
 .*.swp
 *.json
 temp/
+.DS_Store
+.idea/
+*.xlsx
