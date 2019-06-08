@@ -370,11 +370,21 @@ if __name__ == "__main__":
         t = symbols[key]
         print(str(t))
         worksheet = workbook.add_worksheet(t.worksheetName())
+        worksheet.write("A1","Account")
+        worksheet.write("B1","Date")
+        i = 2;
         for key, acct in t.accounts.items():
+
             print(str(acct))
+
 
             for e in acct.entries:
                 print("e:",str(e))
+                myColumn = "A" + str(i)
+                worksheet.write(myColumn, acct.Name())
+                myColumn = "B" + str(i)
+                worksheet.write(myColumn, e.Field('entryDate'))
+                i = i + 1
     # print( 'key:' +  key  + 'value:' + str(acct))
 
     # print(currentA)
