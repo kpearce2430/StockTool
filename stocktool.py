@@ -4,6 +4,7 @@ import csv
 import xlsxwriter
 import basedatacsv as bdata
 import urllib3
+import datetime
 
 
 def LoadLookup(name, lookup):
@@ -104,8 +105,8 @@ if __name__ == "__main__":
            value = "Missing"
            # print("Missing",row[5])
 
-        if value != 'HD':
-             continue;
+        # if value != 'HD':
+        #     continue;
         # else:
         #     print(row)
 
@@ -364,27 +365,70 @@ if __name__ == "__main__":
     # print(currentA)
     # workbook.close()
 
+    entryFields = [ "entryDate", "entryType", "entrySecurity", "entrySymbol", "entryDescription","entryAmount","entryRemainingShares","entryPricePerShare" ]
+
+    number_fmt = workbook.add_format()
+    number_fmt.set_num_format('0.0000')
+    date_fmt = workbook.add_format()
+    date_fmt.set_num_format('mm/dd/yyyy')
+
     for key, value in symbols.items():
-        print('Symbol: ' + key)
+        # print('Symbol: ' + key)
 
         t = symbols[key]
-        print(str(t))
-        worksheet = workbook.add_worksheet(t.worksheetName())
-        worksheet.write("A1","Account")
-        worksheet.write("B1","Date")
-        i = 2;
+
+        if t.numShares() <= 0:
+            continue
+
+        worksheetName = t.worksheetName()
+        if len(worksheetName) > 30 :
+            worksheetName = worksheetName[:30]
+
+        worksheet = workbook.add_worksheet(worksheetName)
+
+        worksheet.write(0,0,"Account")
+        myColumnNum = 1
+        for ef in entryFields:
+            # myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+            currentA = myColumn + "1"
+            worksheet.write(0,myColumnNum,ef)
+            myColumnNum = myColumnNum +1
+
+
+        # print(str(t))
+        myColumnNum = 0
+        myRow = 1
         for key, acct in t.accounts.items():
 
             print(str(acct))
 
-
             for e in acct.entries:
+
                 print("e:",str(e))
-                myColumn = "A" + str(i)
-                worksheet.write(myColumn, acct.Name())
-                myColumn = "B" + str(i)
-                worksheet.write(myColumn, e.Field('entryDate'))
-                i = i + 1
+
+                # myColumn = "A" + str(myRow)
+                worksheet.write(myRow,0, acct.Name())
+
+                myColumnNum = 1
+                for ef in entryFields:
+                    myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
+                    currentA = myColumn + str(myRow)
+                    if ef == 'entryAmount' or ef == 'entryRemainingShares' or ef == 'entryPricePerShare':
+                        worksheet.write_number(myRow, myColumnNum, float(e.Field(ef)),number_fmt )
+                    elif ef == 'entryDate':
+                        format_str = '%m/%d/%Y'  # The format
+                        datetime_obj = datetime.datetime.strptime(e.Field(ef), format_str)
+                        worksheet.write_datetime(myRow,myColumnNum,datetime_obj,date_fmt)
+                    else:
+                        worksheet.write(myRow,myColumnNum,e.Field(ef))
+
+                    myColumnNum = myColumnNum + 1
+
+                for l in e.soldLots:
+                    print (str(l))
+
+                myRow = myRow + 1
+
     # print( 'key:' +  key  + 'value:' + str(acct))
 
     # print(currentA)
