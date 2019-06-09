@@ -37,12 +37,20 @@ class Entry:
 			theEntry['entryShares'] = entry[5]
 			theEntry['entryAmount'] = entry[6]
 			theEntry['entryAccount'] = entry[7]
-			
+			theEntry['entryPricePerShare'] = 0.00
+			theEntry['entryRemainingShares'] = 0.00
+
 			if entry[1] == 'Buy' or entry[1] == 'Add Shares' or entry[1] == 'Reinvest Dividend':
-				theEntry['entryRemainingShares'] = float(entry[5].replace(',',''))
-			else:
-				theEntry['entryRemainingShares'] = 0.00
-			
+				numShares = float(entry[5].replace(',',''))
+				amount = abs(float(entry[6]))
+				# print("amount:", entry[6]," ",amount)
+				theEntry['entryRemainingShares'] = numShares
+
+				if numShares > 0.00:
+					pps =  amount / numShares
+					# print("pps:",pps," = ", amount , " / " , numShares )
+					theEntry['entryPricePerShare'] = pps
+
 			self.entry = theEntry
 			self.soldLots = []
 
@@ -74,7 +82,8 @@ class Entry:
 		myWordList = myDescription.split(' ')
 		if len(myWordList) != 4:
 			print('Error - Unexpected Result from description:' + myDescription + ' Len[' + str(len(myWordList)) + ']')
-			return 0.00
+			return self.entry['entryPricePerShare']
+			# return 0.00
 		
 		# print(str(myWordList))
 		ppsStr = myWordList[3]
@@ -121,10 +130,12 @@ class Entry:
 
 	def cost( self ) :
 		amt = 0.00
-		type =  self.theEntry.get('entryType')
+		type =  self.entry.get('entryType')
 
 		if  type == 'Buy' and self.remainingShares() > 0:
-			amt = self.amount()
+			#
+			amt = self.remainingShares() * self.price_per_share()
+			# amt = self.amount()
 		
 		return amt 
 	
@@ -316,7 +327,7 @@ class Account:
 			if  type == 'Buy':
 				if e.numShares() > 0:
 					# print('Account ' + self.name + ' Entry Cost ' + str(e.amount()))
-					total = total + e.amount()
+					total = total + e.cost()
 
 		# print('Total Account Cost:' + str(total))
 		return round(total,2)
@@ -356,7 +367,7 @@ class Ticker:
 		self.name= entry[2] # everyone has a name
 		self.accounts = dict()
 		self.http = http
-		self.addAccount( entry )
+		self.addToAccount( entry )
 
 	def worksheetName(self):
 		# assert isinstance(self.name, s)
@@ -365,7 +376,7 @@ class Ticker:
 	def __str__(self) :
 		return 'Ticker:' + self.symbol + ' ' + self.name + ' ' + str(self.numShares()) + ' ' + str(self.current_dividend()) + ' ' + str(self.dividend_next12mo()) + ' ' + str(self.latest_price())
 
-	def addAccount(self, entry ):
+	def addToAccount(self, entry ):
 		acct_name = entry[7]
 		a = self.accounts.get(acct_name) 
 		if a == None:
@@ -690,7 +701,7 @@ def ProcessRow(row, symbols, accounts, http):
 			# print ("added:" + s )
 		else:
 			# print ("exists:" + s )
-			t.addAccount(row)
+			t.addToAccount(row)
 
 		a = row[7]
 		try:
@@ -735,7 +746,7 @@ if __name__ == "__main__":
 			# print ("added:" + s )
 		else:
 			# print ("exists:" + s )
-			t.addAccount(row)
+			t.addToAccount(row)
 		
 		a = row[7]
 		try:
