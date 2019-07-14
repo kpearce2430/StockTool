@@ -105,6 +105,7 @@ venv.bak/
 
 # keith's files
 t
+tt
 x
 *.csv
 out
@@ -117,3 +118,4 @@ temp/
 .DS_Store
 .idea/
 *.xlsx
+t.sh
