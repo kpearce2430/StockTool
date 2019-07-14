@@ -1,8 +1,19 @@
 
+#
+# ----------------------------------------------------------------------------
+# "THE BEER-WARE LICENSE" (Revision 42):
+# As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.
+# ----------------------------------------------------------------------------
+#
+
 import csv
 # import json
 import xlsxwriter
 import basedatacsv as bdata
+import portfoliovalue as pvalue
+import tranaction
 import urllib3
 import datetime
 
@@ -16,134 +27,66 @@ def LoadLookup(name, lookup):
         else:
             print("huh:",row)
 
+def WriteLookupWorkSheet( lookups, workbook):
+    myRow = 0
+
+    worksheet = workbook.add_worksheet('Lookups')
+
+    myKeys = lookups.keys()
+    for k in myKeys:
+        v = lookups[k]
+        worksheet.write(myRow, 0, k)
+        worksheet.write(myRow, 1, v)
+        myRow = myRow + 1
+
 
 if __name__ == "__main__":
+
+    #
+    # prepare the input csv and excel worksheet file names.
+    basename = 'KP2019-export-2019-07-14'
+    infilename = basename + '.csv'
+    outfilename = basename + '.xlsx'
+
+    # create the workbook
+    workbook = xlsxwriter.Workbook(outfilename)
 
     # load up the lookup table
     lookUps = dict()
     LoadLookup('lookup.csv', lookUps)
-    # print("lookups",len(lookUps))
+    WriteLookupWorkSheet(lookUps,workbook)
 
+    # load the portfolio value
+    #
+    # Load the Portfolio Value CSV file.  This provides the last price when it's not available
+    # through iexdata.
+    pValues = dict()
+    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-07-14.csv",pValues, lookUps)
+    pvalue.WritePortfolioValueWorksheet(pValues,workbook)
+
+    #
+    # read in the transactions and write them to their own worksheet for any ad-hoc analysis.
+    #
+    translist = []
+    tranaction.LoadTransactions(infilename,translist,lookUps)
+    tranaction.WriteTransactionWorksheet(translist,workbook)
+
+    #
+    # set up the http client to pull stock data.
+    #
     http = urllib3.PoolManager()
     urllib3.disable_warnings()
 
     symbols = dict()
     unique_accounts = []
 
-
-    # prepare the worksheet
-    basename = 'KP2019-export-2019-06-08'
-    infilename = basename + '.csv'
-    outfilename = basename + '.xlsx'
-
-    workbook = xlsxwriter.Workbook(outfilename)
-    worksheet = workbook.add_worksheet('Lookups')
-    myRow = 1
-
-    myKeys = lookUps.keys()
-    for k in myKeys:
-        v = lookUps[k]
-        currentA = 'A' + str(myRow)
-        currentB = 'B' + str(myRow)
-        worksheet.write(currentA,k)
-        worksheet.write(currentB,v)
-        myRow = myRow+1
-
-    worksheet = workbook.add_worksheet('Transactions')
-
-
-    # Transasction headers
-    worksheet.write('A1','Date')
-    worksheet.write('B1','Type')
-    worksheet.write('C1','Security')
-    worksheet.write('D1','Security/Payee')
-    worksheet.write('E1','Description')
-    worksheet.write('F1','Shares')
-    worksheet.write('G1','Amount')
-    worksheet.write('H1','Account')
-    worksheet.write('I1','Year')
-    worksheet.write('J1','Month')
-
-    i = 0
-    xRow = 2
-    transReader = csv.reader(open(infilename, newline=''), delimiter=',', quotechar='"')
-
-    # A - Date
-    # B - Type
-    # C - Security
-    # D - Security/Payee
-    # E - Description
-    # F - Shares
-    # G - Amount
-    # H - Account
-    # I - Year
-    # J - Month
-    TheColumns = [ "A", "B", "C", "D", "E","F","G","H"]
-    # TheRows = [ 2, 3, 4, 5, 6, 7 ]
-    for row in transReader:
-
-        if (len(row) < 10):
-            print("skipping[", i, "] items[", len(row), "] [", row, "]")
-            continue
-
-        # The first two columns from Quicken 18 are junk.
-        # Get rid of them.
-        del row[0]
-        del row[0]
-
-        i = i + 1
-
-        if row[0] == 'Date':
-            print("skipping[",i,"item[",row[2],"] [",row,"]")
-            continue
-
-        j = 0
-
-        value = lookUps.get(row[3])
-
-        if value == None:
-           value = "Missing"
-           # print("Missing",row[5])
-
-        # if value != 'HD':
-        #     continue;
-        # else:
-        #     print(row)
-
-        row[3] = value
-
-        for c in TheColumns:
-
-            currentA = c  + str(xRow)
-            if c == "F" or c == "G":
-               try:
-                    row[j] = row[j].replace(',','')
-                    val = float(row[j])
-                    worksheet.write(currentA,float(row[j]))
-               except ValueError:
-                   worksheet.write(currentA, row[j])
-            else:
-                worksheet.write(currentA,row[j])
-
-            j = j + 1
-
-        currentA = "I" + str(xRow)
-        formula = "=YEAR(" + "A"+str(xRow) + ")"
-        worksheet.write_formula(currentA,formula)
-
-        currentA = "J" + str(xRow)
-        formula = "=MONTH(" + "A"+str(xRow) + ")"
-        worksheet.write_formula(currentA,formula)
-
-        xRow = xRow + 1
+    for row in translist:
         # add row to the master list
         bdata.ProcessRow(row,symbols,unique_accounts,http)
 
-
     unique_accounts.sort()
 
-    # bdata.printSymbols( symbols )
-
+    # details are the rows of the Stock Analysis worksheet.
     details = []
     bdata.createSheet(symbols, unique_accounts, details)
 
@@ -260,6 +203,12 @@ if __name__ == "__main__":
             elif l == 'Net':
                 formula = "=" + totalValueCol + str(xRow) + "-" + totalCostCol + str(xRow)
                 worksheet.write_formula(currentA, formula)
+            elif l == 'Latest Price':
+                lsymbol = d.get('Symbol')
+                lpriceV = pValues.get(lsymbol)
+                lprice = lpriceV.get('quote')
+                worksheet.write_number(currentA,float(lprice))
+
             else:
                 worksheet.write(currentA, v)
 
@@ -400,11 +349,11 @@ if __name__ == "__main__":
         myRow = 1
         for key, acct in t.accounts.items():
 
-            print(str(acct))
+            # print(str(acct))
 
             for e in acct.entries:
 
-                print("e:",str(e))
+                # print("e:",str(e))
 
                 # myColumn = "A" + str(myRow)
                 worksheet.write(myRow,0, acct.Name())
@@ -424,8 +373,8 @@ if __name__ == "__main__":
 
                     myColumnNum = myColumnNum + 1
 
-                for l in e.soldLots:
-                    print (str(l))
+                # for l in e.soldLots:
+                #    print (str(l))
 
                 myRow = myRow + 1
 
