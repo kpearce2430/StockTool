@@ -505,7 +505,13 @@ class Ticker:
 		elif len(self.symbol) < 5:
 			#
 			# not a symbol we can get a quote on.
-			url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/batch?types=quote,stats,earnings,news,chart,dividends,close&range=1y&last=3'
+			# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/batch?types=quote,stats,earnings,news,chart,dividends,close&range=1y&last=3'
+			# all the data
+			#  need to build cache for each tiem below to save transaction costs.
+			#
+			# url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,earnings,news,chart,dividends,close&range=1y&last=3&token=sk_dfb84d8fa2cd401385dd43f56e528386'
+			url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,dividends&range=1y&last=3&token=sk_dfb84d8fa2cd401385dd43f56e528386'
+			#
 			#
 			# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/quote'
 			r = self.http.request('GET',url)
@@ -524,7 +530,8 @@ class Ticker:
 				else:
 					print('Not JSON Format')
 			else:
-				print('Request Failed')
+				print('Request Failed[' + str(r.status) + '] ' + str(r) )
+				print("URL: ", url)
 				
 		self.quote_data =  None
 		self.stats_data =  None
@@ -566,7 +573,7 @@ class Ticker:
 			print(self.name," No earnings")
 			return None
 
-		myearnings = earnings.get('latestEPS')
+		myearnings = earnings.get('ttmEPS')
 		print(self.name,' earnings:',myearnings)
 		if myearnings != None:
 			return myearnings
@@ -618,9 +625,9 @@ def createSheet( symbols, acct_list, details ):
 
 	# allRows = []
 
-	header = 'Name,Symbol,Total Shares' 
-	for a in acct_list:
-		header = header + ',' + a
+	# header = 'Name,Symbol,Total Shares'
+	# for a in acct_list:
+	# 	header = header + ',' + a
 
 	 # print(header)
 
