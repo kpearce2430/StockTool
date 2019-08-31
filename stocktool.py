@@ -369,7 +369,7 @@ if __name__ == "__main__":
                     myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
                     currentA = myColumn + str(myRow)
                     if ef == 'entryAmount' or ef == 'entryRemainingShares' or ef == 'entryPricePerShare':
-                        # print(ef,":",e.Field(ef))
+                        #
                         try:
                             num = float(e.Field(ef))
                         except:
@@ -384,8 +384,6 @@ if __name__ == "__main__":
 
                     myColumnNum = myColumnNum + 1
 
-                # for l in e.soldLots:
-                #    print (str(l))
 
                 myRow = myRow + 1
 
