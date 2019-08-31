@@ -3,10 +3,11 @@ import csv
 import xlsxwriter
 
 def PortfolioHeaders():
-    return [ "Name","Symbol","Quote","Price Day Change","Price Day Change (%)","Shares","Cost Basis","Market Value","Gain/Loss","Gain/Loss (%)"]
+    return [ "Name","Symbol","Quote","Price Day Change","Price Day Change (%)","Shares","Cost Basis","Market Value","Average Cost Per Share","Gain/Loss 12-Month","Gain/Loss","Gain/Loss (%)" ]
+    # return [ "Name","Symbol","Quote","Price Day Change","Price Day Change (%)","Shares","Cost Basis","Market Value","Gain/Loss","Gain/Loss (%)"]
 
 def PortfolioLabels():
-    return ["name","symbol","quote","price_day_change","price_day_change_pct","shares","cost_basis","market_value","gain_loss","gain_loss_pct"]
+    return ["name","symbol","quote","price_day_change","price_day_change_pct","shares","cost_basis","market_value","avg_cost_per_share","gain_loss_last_12m","gain_loss","gain_loss_pct"]
 
 
 def LoadPortfolioValue(name, pvalue, lookups = None):
@@ -27,7 +28,9 @@ def LoadPortfolioValue(name, pvalue, lookups = None):
     lookupReader = csv.reader(open(name,newline=''),delimiter=',', quotechar='"')
     for row in lookupReader:
         #
-        if len(row) == 10:
+        if len(row) != 12:
+            print("Invalid row:", row)
+        else:
             sname = row[0]
             if len(sname) == 1:
                 continue
@@ -47,7 +50,7 @@ def LoadPortfolioValue(name, pvalue, lookups = None):
 
                 row[0] = sname
                 datum = dict()
-                for i in range(10):
+                for i in range(12):
                     if i > 1:
                         if row[i] == "Add":
                             value = "0"
@@ -93,26 +96,28 @@ def WritePortfolioValueWorksheet(pvalue, workbook):
         myColumn = myColumn + 1
 
     myRow = 1
-    for k in myKeys:
-        v = pvalue[k]
-        myColumn = 0
-        for l in labels:
-            if l == "quote" or l == "price_day_change" or l == "shares":
+    try:
+        for k in myKeys:
+            v = pvalue[k]
+            myColumn = 0
+            for l in labels:
+                if l == "quote" or l == "price_day_change" or l == "shares":
+                    worksheet.write_number(myRow, myColumn, float(v[l]))
+                elif l == "cost_basis" or l == "market_value" or l == "gain_loss":
+                    worksheet.write_number(myRow, myColumn, float(v[l]), money_fmt )
+                elif l == "price_day_change_pct" or l == "gain_loss_pct":
+                    worksheet.write_number(myRow, myColumn, float(v[l])/100, percent_fmt)
+                else:
+                    worksheet.write(myRow,myColumn,v[l])
 
-                worksheet.write_number(myRow, myColumn, float(v[l]))
-            elif l == "cost_basis" or l == "market_value" or l == "gain_loss":
-                worksheet.write_number(myRow, myColumn, float(v[l]), money_fmt )
-            elif l == "price_day_change_pct" or l == "gain_loss_pct":
-                worksheet.write_number(myRow, myColumn, float(v[l])/100, percent_fmt)
-            else:
-                worksheet.write(myRow,myColumn,v[l])
-
-            myColumn = myColumn + 1
-        myRow = myRow + 1
+                myColumn = myColumn + 1
+            myRow = myRow + 1
+    except:
+        print("exception")
 
 if __name__ == "__main__":
     pvalue = dict()
-    name = "KP2019 - Investing - Portfolio Value - Group by Security - 2019-06-29.csv"
+    name = "KP2019 - Investing - Portfolio Value - Group by Security - 2019-08-31.csv"
     workbook = xlsxwriter.Workbook("portfolios.xlsx")
 
     LoadPortfolioValue(name,pvalue, None)
