@@ -13,7 +13,7 @@ import csv
 import xlsxwriter
 import basedatacsv as bdata
 import portfoliovalue as pvalue
-import tranaction
+import transaction
 import urllib3
 import datetime
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     #
     # prepare the input csv and excel worksheet file names.
-    basename = 'KP2019-export-2019-07-14'
+    basename = 'KP2019-export-2019-08-31'
     infilename = basename + '.csv'
     outfilename = basename + '.xlsx'
 
@@ -61,15 +61,15 @@ if __name__ == "__main__":
     # Load the Portfolio Value CSV file.  This provides the last price when it's not available
     # through iexdata.
     pValues = dict()
-    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-07-14.csv",pValues, lookUps)
+    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-08-31.csv",pValues, lookUps)
     pvalue.WritePortfolioValueWorksheet(pValues,workbook)
 
     #
     # read in the transactions and write them to their own worksheet for any ad-hoc analysis.
     #
     translist = []
-    tranaction.LoadTransactions(infilename,translist,lookUps)
-    tranaction.WriteTransactionWorksheet(translist,workbook)
+    transaction.LoadTransactions(infilename,translist,lookUps)
+    transaction.WriteTransactionWorksheet(translist,workbook)
 
     #
     # set up the http client to pull stock data.
@@ -204,10 +204,16 @@ if __name__ == "__main__":
                 formula = "=" + totalValueCol + str(xRow) + "-" + totalCostCol + str(xRow)
                 worksheet.write_formula(currentA, formula)
             elif l == 'Latest Price':
+                #
                 lsymbol = d.get('Symbol')
+                #
                 lpriceV = pValues.get(lsymbol)
-                lprice = lpriceV.get('quote')
-                worksheet.write_number(currentA,float(lprice))
+                #
+                if lpriceV != None:
+                    lprice = lpriceV.get('quote')
+                else:
+                    lprice = 0.00
+                worksheet.write_number(currentA, float(lprice))
 
             else:
                 worksheet.write(currentA, v)
@@ -363,7 +369,12 @@ if __name__ == "__main__":
                     myColumn = xlsxwriter.utility.xl_col_to_name(myColumnNum)
                     currentA = myColumn + str(myRow)
                     if ef == 'entryAmount' or ef == 'entryRemainingShares' or ef == 'entryPricePerShare':
-                        worksheet.write_number(myRow, myColumnNum, float(e.Field(ef)),number_fmt )
+                        # print(ef,":",e.Field(ef))
+                        try:
+                            num = float(e.Field(ef))
+                        except:
+                            num = 0.00
+                        worksheet.write_number(myRow, myColumnNum, num ,number_fmt )
                     elif ef == 'entryDate':
                         format_str = '%m/%d/%Y'  # The format
                         datetime_obj = datetime.datetime.strptime(e.Field(ef), format_str)
