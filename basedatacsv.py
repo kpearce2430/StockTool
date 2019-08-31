@@ -42,7 +42,11 @@ class Entry:
 
 			if entry[1] == 'Buy' or entry[1] == 'Add Shares' or entry[1] == 'Reinvest Dividend':
 				numShares = float(entry[5].replace(',',''))
-				amount = abs(float(entry[6]))
+				# print("[",entry[6],"]")
+				if entry[6].isnumeric():
+					amount = abs(float(entry[6]))
+				else:
+					amount = 0.00
 				# print("amount:", entry[6]," ",amount)
 				theEntry['entryRemainingShares'] = numShares
 
@@ -126,7 +130,10 @@ class Entry:
 	def amount(self):
 		sAmount = self.entry.get('entryAmount')
 		# print('Entry Amount:' + sAmount)
-		return float( sAmount.replace(',',''))
+		try:
+			return float( sAmount.replace(',',''))
+		except:
+			return 0.00
 
 	def cost( self ) :
 		amt = 0.00
@@ -729,11 +736,22 @@ if __name__ == "__main__":
 
 	symbols = dict()
 	unique_accounts = []
+	details = []
 
 	stockReader = csv.reader(open('quicken_data.csv', newline=''), delimiter=',',quotechar='"')
 
+	i = 0
 	for row in stockReader:
 		# print(len(row),row[3])
+
+		if (len(row) < 10):
+			print("skipping[", i, "] items[", len(row), "] [", row, "]")
+			continue
+
+		# The first two columns from Quicken 18 are junk.
+		# Get rid of them.
+		del row[0]
+		del row[0]
 
 		s = row[3]
 		
@@ -763,12 +781,16 @@ if __name__ == "__main__":
 			unique_accounts.append(a)
 			# for i in unique_accounts:
 			# 	print( i )
+		i = i + 1
 
 	unique_accounts.sort()
-	
+
+	for a in unique_accounts:
+		print(a)
+
 	# printSymbols( symbols ) 
 	
-	createSheet(  symbols , unique_accounts )
+	createSheet(  symbols , unique_accounts, details )
 	# printSymbols(symbols)
 	
 	# text = commonRequestCall('https://api.iextrading.com/1.0/stock/psec/dividends/1y', disable_warnings=False,  myTimeout=15.00):
