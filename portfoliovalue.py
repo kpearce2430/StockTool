@@ -29,7 +29,8 @@ def LoadPortfolioValue(name, pvalue, lookups = None):
     for row in lookupReader:
         #
         if len(row) != 12:
-            print("Invalid row:", row)
+            # print("Invalid row:", row)
+            continue
         else:
             sname = row[0]
             if len(sname) == 1:
@@ -46,7 +47,7 @@ def LoadPortfolioValue(name, pvalue, lookups = None):
                 # look for a missing symbol
                 if lookups != None and row[1] == '':  # symbol is blank
                     row[1] = lookups.get(sname)
-                    print("Adding symbol:", row[1])
+                    # print("Adding symbol:", row[1])
 
                 row[0] = sname
                 datum = dict()

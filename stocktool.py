@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     #
     # prepare the input csv and excel worksheet file names.
-    basename = 'KP2019-export-2019-08-31'
+    basename = 'KP2019-export-2019-09-14'
     infilename = basename + '.csv'
     outfilename = basename + '.xlsx'
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # Load the Portfolio Value CSV file.  This provides the last price when it's not available
     # through iexdata.
     pValues = dict()
-    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-08-31.csv",pValues, lookUps)
+    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-09-14.csv",pValues, lookUps)
     pvalue.WritePortfolioValueWorksheet(pValues,workbook)
 
     #
@@ -82,7 +82,19 @@ if __name__ == "__main__":
 
     for row in translist:
         # add row to the master list
-        bdata.ProcessRow(row,symbols,unique_accounts,http)
+        #
+        # "date", "type", "security","security_payee","description","shares","amount","account"
+        e = bdata.Entry(
+            row.get_value("date"),
+            row.get_value("type"),
+            row.get_value("security_payee"),
+            row.get_value("security"),
+            row.get_value("description"),
+            row.get_value("shares"),
+            row.get_value("amount"),
+            row.get_value("account"))
+
+        bdata.ProcessEntry(e,symbols,unique_accounts,http)
 
     unique_accounts.sort()
 

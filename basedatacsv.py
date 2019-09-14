@@ -1,13 +1,10 @@
 
+import os
 import csv
-# import json
-# import os
 import json
 import urllib3
-import time
 from datetime import date
-from pip._vendor.html5lib.filters.sanitizer import data_content_type
-from test.test_socket import ConnectedStreamTestMixin
+# import transaction
 
 # * * * * * * * * * * * * * * * *
 class Lot:
@@ -25,40 +22,44 @@ class Lot:
 	
 class Entry:
 	
-	def __init__( self, entry = None):
+	def __init__( self, date = None, type = None, security = "", symbol = None, desc = None, shares = None, amount = None, account = None ):
 	
-		if isinstance( entry, list ):
-			theEntry = dict()
-			theEntry['entryDate'] = entry[0]
-			theEntry['entryType'] = entry[1]
-			theEntry['entrySecurity'] = entry[2]
-			theEntry['entrySymbol'] = entry[3]
-			theEntry['entryDescription'] = entry[4]
-			theEntry['entryShares'] = entry[5]
-			theEntry['entryAmount'] = entry[6]
-			theEntry['entryAccount'] = entry[7]
-			theEntry['entryPricePerShare'] = 0.00
-			theEntry['entryRemainingShares'] = 0.00
+		theEntry = dict()
+		theEntry['entryDate'] = date # 0
+		theEntry['entryType'] = type # 1
+		theEntry['entrySecurity'] = security #2
+		theEntry['entrySymbol'] = symbol # 3
+		theEntry['entryDescription'] = desc # 4
+		theEntry['entryShares'] = shares # 5
+		theEntry['entryAmount'] = amount # 6
+		theEntry['entryAmount'] = amount # 6
+		theEntry['entryAccount'] = account #7
+		theEntry['entryPricePerShare'] = 0.00
+		theEntry['entryRemainingShares'] = 0.00
 
-			if entry[1] == 'Buy' or entry[1] == 'Add Shares' or entry[1] == 'Reinvest Dividend':
-				numShares = float(entry[5].replace(',',''))
-				# print("[",entry[6],"]")
-				if entry[6].isnumeric():
-					amount = abs(float(entry[6]))
-				else:
-					amount = 0.00
-				# print("amount:", entry[6]," ",amount)
-				theEntry['entryRemainingShares'] = numShares
+		if type == 'Buy' or type == 'Add Shares' or type == 'Reinvest Dividend':
+			numShares = float(shares.replace(',',''))
+			#
+			# print(type, " ", numShares," of ",symbol," for ", account)
+			if amount.isnumeric():
+				myAmount = abs(float(amount))
+			else:
+				myAmount = 0.00
+			# print("amount:", entry[6]," ",amount)
+			theEntry['entryRemainingShares'] = numShares
 
-				if numShares > 0.00:
-					pps =  amount / numShares
-					# print("pps:",pps," = ", amount , " / " , numShares )
-					theEntry['entryPricePerShare'] = pps
+			if numShares > 0.00:
+				pps =  myAmount / numShares
+				# print("pps:",pps," = ", amount , " / " , numShares )
+				theEntry['entryPricePerShare'] = pps
 
-			self.entry = theEntry
-			self.soldLots = []
+		self.entry = theEntry
+		self.soldLots = []
 
-			# print('The Entry:' + str( self.entry))
+		# print('The Entry:' + str( self.entry))
+
+	def printEntry(self):
+		print(str(self))
 
 	def Field(self,field):
 		# if hasattr(self.entry,field):
@@ -109,7 +110,8 @@ class Entry:
 	
 	def numShares(self):
 		myShares = float(self.entry.get('entryRemainingShares'))
-		 
+
+		# print("numShares:",myShares)
 		if (myShares > 0.00):
 			return myShares
 		else:
@@ -176,7 +178,24 @@ class Entry:
 
 	def entryDate(self):
 		date_elem = self.entry['entryDate'].split('/')
-		myDate = date(int(date_elem[2]),int(date_elem[0]),int(date_elem[1]))
+		try:
+			print("Date:",date_elem)
+			if len(date_elem[2]) < 4:
+				year = int(date_elem[2])
+				# Since Quicken on exports 2 digit year, I took this simple approach
+				if year > 50:
+					year = 1900 + year
+				else:
+					year = 2000 + year
+			else:
+				year = int(date_elem[2])
+
+			myDate = date(year,int(date_elem[0]),int(date_elem[1]))
+			print("My Date:",myDate)
+		except:
+			print("Could not convert date:",date_elem)
+			raise("Could not convert entry date ")
+
 		return myDate
 
 
@@ -184,16 +203,20 @@ class Account:
 
 	def __init__(self, name=None, entry=None ):
 
+
 		if name == None or entry == None:
 			print ('missing data')
 			return
-		
+
+		print("Creating Account ", name)
 		self.name = name
 		self.entries = [] # dict()
 		self.pending = []
 		
-		if isinstance(entry, list):
+		if isinstance(entry, Entry):
 			self.addEntry(entry)
+		else:
+			raise("Not and entry")
 
 		self.current_shares = 0
 		
@@ -218,10 +241,9 @@ class Account:
 				print('Lot:' + str(lot) + 'p:' + str(lot.proceeds()))
 
 
-	def addEntry( self, entry ):
-		if isinstance( entry, list ):
-			myEntry = Entry(entry)
-			
+	def addEntry( self, myEntry  ):
+		# print(myEntry.type(), " For ", myEntry.symbol(), " Shares ", myEntry.shares())
+		if isinstance( myEntry, Entry ):
 			if myEntry.type() == 'Sell' or myEntry.type() == 'Short Sell':
 				# print('Got a sell:' + str(myEntry))
 				sellShares = abs(myEntry.shares())
@@ -246,7 +268,7 @@ class Account:
 				else:
 					# queue this entry until we have the shares
 					# print('Queuing Entry[' + str(myEntry) + ']' + 'Sell: ' + str(sellShares))
-					self.pending.append(entry)
+					self.pending.append(myEntry)
 					
 			elif myEntry.type() == 'Stock Split':
 				# 
@@ -259,7 +281,13 @@ class Account:
 					
 			elif myEntry.type() == 'Remove Shares':
 				removeShares = abs(myEntry.shares())
+				#
+				# print("Removing Shares:", removeShares)
 				currentShares = self.numShares()
+				# print("Current Shares:",currentShares)
+				# if currentShares == 0:
+				#	self.printAccount()
+
 				if round(currentShares,4) >= round(removeShares,4):
 					# we can go ahead.  
 					for e in self.entries:
@@ -273,17 +301,18 @@ class Account:
 									
 				else: 
 					# queue this entry until we have the shares
-					# print('Queuing Entry[' + str(myEntry) + ']')
-					self.pending.append(entry)
+					print('Queuing Entry[' + str(myEntry) + ']')
+					self.pending.append(myEntry)
 				
 			else:
-										
+				# print("Add:", str(myEntry))
 				self.entries.append(myEntry)
+				# self.printAccount()
 				# print('Current ' + myEntry.symbol() + ',' + myEntry.type() + ',' + str(myEntry.shares()) + ' shares:' + str(self.numShares()) + ' pend: ' + str(self.totalPending()))
 
 
 		else:
-			print( 'ERROR: entry is not a list' )
+			raise( 'ERROR: entry is not an Entry' )
 			return False
 
 
@@ -295,29 +324,35 @@ class Account:
 	def totalPending(self):
 		total = 0.00
 		for p in self.pending:
-			total = total + abs(float(p[5].replace(',','')))
+			if isinstance(p, Entry) == False:
+				raise("Invalid Entry in Pending")
+
+			amount = p.Field("entryAmount")
+			total = total + abs(float(amount.replace(',','')))
+
 		# print('Pending: ' + str(total))
 		return total
 
 	def clearPending(self):
+		# print("Clear pending ",len(self.pending)," for ", self.Name())
+		# self.printEntries()
 		while len(self.pending) > 0:
 			e = self.pending[0]
+			# print(str(e))
 			if self.addEntry(e):
 				self.pending.remove(e)
 				# print('Current ' + e[3] + ' shares:' + str(self.numShares()))
 			else:
-				print("ERROR Processing Pending Entry" + str(e))
+				raise ("ERROR Processing Pending Entry" + str(e))
 				return
 				
 			
 	def numShares( self ):
 		total = 0.00
 		for e in self.entries:	
-			# print ( 'e5=' +  e[5] )
 			shares = e.numShares()
 			total = total + shares
-			# print ( total, shares )
-	
+
 		return round(total,4)
 
 	def dividends_paid( self ):
@@ -356,7 +391,7 @@ class Account:
 			if e.numShares() > 0:
 				myDate = e.entryDate()
 				if myDate < theDate:
-					# print("Setting date",myDate)
+					print("Account Setting date",myDate)
 					theDate = myDate
 
 		return theDate
@@ -364,17 +399,20 @@ class Account:
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  
 class Ticker:
 
-	def __init__(self, symbol, entry, http=None ) :
+	def __init__(self, entry, http=None ) :
 
-		if symbol == None or entry == None:
-			print ('missing data')
+
+		if isinstance(entry,Entry) == False:
+			raise('Invalid entry passed into Ticker')
 			return
 
-		self.symbol=symbol
-		self.name= entry[2] # everyone has a name
+		self.symbol=entry.Field("entrySymbol")
+		self.name= entry.Field("entrySecurity") # everyone has a name
 		self.accounts = dict()
 		self.http = http
 		self.addToAccount( entry )
+		self.token = os.environ.get("TOKEN")
+		print(self.token)
 
 	def worksheetName(self):
 		# assert isinstance(self.name, s)
@@ -384,7 +422,12 @@ class Ticker:
 		return 'Ticker:' + self.symbol + ' ' + self.name + ' ' + str(self.numShares()) + ' ' + str(self.current_dividend()) + ' ' + str(self.dividend_next12mo()) + ' ' + str(self.latest_price())
 
 	def addToAccount(self, entry ):
-		acct_name = entry[7]
+		if isinstance(entry,Entry) == False:
+			raise("Ticker.addToAccount did not get an Entry")
+			# print("Ticker.addToAccount did not get an Entry:",entry)
+			return
+
+		acct_name = entry.Field("entryAccount")
 		a = self.accounts.get(acct_name) 
 		if a == None:
 			# print( "added acct name:" + acct_name )
@@ -514,10 +557,9 @@ class Ticker:
 			# not a symbol we can get a quote on.
 			# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/batch?types=quote,stats,earnings,news,chart,dividends,close&range=1y&last=3'
 			# all the data
-			#  need to build cache for each tiem below to save transaction costs.
+			#  TODO: need to build cache for each item below to save transaction costs.
 			#
-			# url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,earnings,news,chart,dividends,close&range=1y&last=3&token=sk_dfb84d8fa2cd401385dd43f56e528386'
-			url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,dividends&range=1y&last=3&token=sk_dfb84d8fa2cd401385dd43f56e528386'
+			url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,dividends&range=1y&last=3&token=' + self.token # '
 			#
 			#
 			# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/quote'
@@ -587,30 +629,15 @@ class Ticker:
 		else:
 			print("Missing LastestEPS:", self.name, ":", earnings)
 			return None
-#			lastest_earnings = myearnings[0]
-#			actualEPS = lastest_earnings.get('latestEPS')
-#			if actualEPS != None:
-#				return actualEPS
-#			else:
-#				consensusEPS = lastest_earnings.get('consensusEPS')
-#				if consensusEPS != None:
-#					print("Missing actualEPS",self.name,myearnings)
-#					return consensusEPS
-#				else:
-#					print("Missing consensusEPS",self.name,myearnings)
-#					return 0.00
-#
-#		else:
-#			print("Missing earnings ", self.name)
-#			return None
 
 	def firstBought(self):
 		theDate = date.today()
 		for key, acct in self.accounts.items():
 			myDate = acct.firstBought()
+			print("Account FB:",myDate)
 			if myDate < theDate:
 				theDate = myDate
-				# print("ticker setting date",theDate)
+				print("ticker setting date",theDate)
 
 		return theDate
 
@@ -683,7 +710,7 @@ def createSheet( symbols, acct_list, details ):
 
 		theDate = t.firstBought()
 		thisRow['First Purchase'] = theDate.strftime('%m/%d/%Y')
-
+		print("First Purchased:",theDate.strftime("%m/%d/%Y"))
 		today = date.today()
 		dateDelta = today - theDate
 		thisRow['Days Owned'] = dateDelta.days
@@ -692,12 +719,10 @@ def createSheet( symbols, acct_list, details ):
 		
 		details.append(thisRow)
 
+def ProcessInfo( info, symbols, accounts, http):
 
-def ProcessRow(row, symbols, accounts, http):
-
-	if isinstance(row, list):
-
-		s = row[3]
+	if isinstance(info, dict):
+		s = info.get("security")
 
 		# if s != 'CDC': # and s != 'UNP':
 		#	return
@@ -705,28 +730,56 @@ def ProcessRow(row, symbols, accounts, http):
 		if s == str(None) or s == "Missing" or s == "DEAD" or s == 'Symbol':
 			return
 
+def ProcessEntry( entry, symbols, accounts, http):
+
+	# print("ProcessEntry:", str(entry))
+	if isinstance(entry, Entry):
+		s = entry.Field("entrySymbol")
+		# print("symbol:",s)
+
+		# TODO:  Add a way to limit which symbols to look at.
+		# if s != "PM":
+		# 	return
+
+		if s == str(None) or s == "Missing" or s == "DEAD" or s == 'Symbol':
+			return
+
 		t = symbols.get(s)
+		# print("Symbol ",s," Ticker:", str(t))
 
 		if t == None:
 			#
 			# create the ticker, add the account, add the row
-			t	 = Ticker(s, row, http)
+
+			t	 = Ticker( entry, http)
 			symbols[s] = t
 			# print ("added:" + s )
 		else:
 			# print ("exists:" + s )
-			t.addToAccount(row)
+			t.addToAccount(entry)
 
-		a = row[7]
+		a = entry.Field("entryAccount")
 		try:
 			accounts.index(a)
 		except ValueError:
 			# print( 'adding account: ' + a )
 			accounts.append(a)
 
+	else:
+		raise("Invalid parameter:",entry)
 
-# for i in unique_accounts:
-# 	print( i )
+def ProcessRow(row, symbols, accounts, http):
+
+	if isinstance(row, list):
+		e = Entry(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7])
+		s = e.Field("entrySymbol")
+		if s != 'PM': # and s != 'UNP':
+			return
+		ProcessEntry(e, symbols, accounts, http)
+
+	else:
+		raise("Invalid parameter:",row)
+
 
 if __name__ == "__main__":
 
@@ -737,11 +790,22 @@ if __name__ == "__main__":
 	symbols = dict()
 	unique_accounts = []
 	details = []
+	lookup = dict()
+
+	lookupReader = csv.reader(open("lookup.csv", newline=''), delimiter=',', quotechar='"')
+	for row in lookupReader:
+		if len(row) == 2:
+			# print(row[0],row[1])
+			lookup[row[0]] = row[1]
+		else:
+			print("huh:", row)
+
 
 	stockReader = csv.reader(open('quicken_data.csv', newline=''), delimiter=',',quotechar='"')
 
 	i = 0
 	for row in stockReader:
+
 		# print(len(row),row[3])
 
 		if (len(row) < 10):
@@ -753,46 +817,21 @@ if __name__ == "__main__":
 		del row[0]
 		del row[0]
 
-		s = row[3]
-		
-		#if s != 'FCNTX': # and s != 'UNP':
-		# 	continue
-		
-		if s == str(None) or s == "Missing" or s == "DEAD" or s == 'Symbol' :
-			continue
+		k = row[3]
+		s = lookup.get(k)
+		row[3] = s
 
-		t = symbols.get(s)
-		
-		if t == None:
-			#
-			# create the ticker, add the account, add the row
-			t = Ticker(s,row, http)
-			symbols[s] = t
-			# print ("added:" + s )
-		else:
-			# print ("exists:" + s )
-			t.addToAccount(row)
-		
-		a = row[7]
-		try:
-			unique_accounts.index(a) 
-		except ValueError:
-			# print( 'adding account: ' + a )
-			unique_accounts.append(a)
-			# for i in unique_accounts:
-			# 	print( i )
-		i = i + 1
+		ProcessRow(row,symbols,unique_accounts,http)
 
 	unique_accounts.sort()
 
 	for a in unique_accounts:
 		print(a)
 
-	# printSymbols( symbols ) 
+	printSymbols( symbols )
 	
 	createSheet(  symbols , unique_accounts, details )
-	# printSymbols(symbols)
-	
-	# text = commonRequestCall('https://api.iextrading.com/1.0/stock/psec/dividends/1y', disable_warnings=False,  myTimeout=15.00):
-	# print(text)
+
+	print( details )
+
 
