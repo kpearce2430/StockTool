@@ -35,10 +35,10 @@ class Transaction:
         return self.get_value('date')
 
 def TransactionJsonTags():
-    return ["date", "type", "security","security_payee","description","shares","amount","account","year","month"]
+    return ["date", "type", "security","security_payee","description","shares","invest_amt","amount","account","year","month"]
 
 def TransactionHeaders():
-    return ["Date","Type","Security","Security/Payee","Description/Category","Shares","Amount","Account","Year","Month"]
+    return ["Date","Type","Security","Security/Payee","Description/Category","Shares","Invest Amt","Amount","Account","Year","Month"]
 
 
 def returnTag(hdr):
@@ -78,7 +78,6 @@ def LoadTransactions(infilename, transactions, lookups ):
         i = i + 1
 
         if len(row) < 3:
-            # print("skipping[", i, "] [", row, "]")
             continue
 
         # The first two columns from Quicken 18 are junk.
@@ -92,7 +91,6 @@ def LoadTransactions(infilename, transactions, lookups ):
             for r in row:
                 myHeaders.append(r)
                 tag = returnTag(r)
-                # print(r,":",tag)
                 myTags.append(tag)
                 if r == "Security":
                     securityRow = j
@@ -101,7 +99,6 @@ def LoadTransactions(infilename, transactions, lookups ):
             print("# Tags:", len(myTags))
             print("# Headers:", len(myHeaders))
             print("Security Row:", securityRow)
-            # print("skipping[",i,"item[",row[2],"] [",row,"]")
             continue
 
 
@@ -111,13 +108,11 @@ def LoadTransactions(infilename, transactions, lookups ):
 
 
         if (len(row) != len(myTags)):
-            # print("skipping[", i, "] items[", len(row), "] [", row, "]")
             continue
 
         info = Transaction()
 
         for j in range(len(myTags)):
-            # print(j)
 
             if myTags[j] == 'None':
                 continue
@@ -129,14 +124,13 @@ def LoadTransactions(infilename, transactions, lookups ):
                     value = "Missing"
                 row[j] = value
 
-            if myHeaders[j] == 'Shares' or myHeaders[j] == 'Amount':
+            if myHeaders[j] == 'Shares' or myHeaders[j] == 'Amount' or myHeaders[j] == 'Invest Amt':
                 # Femove the commas
                 row[j] = row[j].replace(',', '')
 
             info.set_value(myTags[j],row[j])
             j = j + 1
 
-        # print(info)
         i = i + 1
 
         transactions.append(info)
@@ -176,12 +170,21 @@ def WriteTransactionWorksheet( transactions, workbook):
             if myTag == 'date':
                 worksheet.write(row, column, value, date_fmt)
 
-
-            elif myTag == 'shares' or myTag == 'amount':
-                if value.isnumeric():
+            elif myTag == 'shares' or myTag == 'invest_amt':
+                try:
                     worksheet.write_number(row, column, float(value))
-                else:
-                    worksheet.write(row, column, value)
+                except:
+                    worksheet.write_number(row, column, 0.00)
+
+            elif myTag == 'amount':
+
+                if data.get_value("type") == "Reinvest Dividend":
+                    value = data.get_value("invest_amt")
+
+                try:
+                    worksheet.write_number(row, column, float(value))
+                except:
+                    print(myTag,"Not a number(", str(data),")")
 
             elif myTag == 'year':
                 formula = "=YEAR(" + "A" + str(row + 1) + ")"
