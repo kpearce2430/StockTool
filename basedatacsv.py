@@ -32,7 +32,7 @@ class Entry:
 		theEntry['entryDescription'] = desc # 4
 		theEntry['entryShares'] = shares # 5
 		theEntry['entryAmount'] = amount # 6
-		theEntry['entryAmount'] = amount # 6
+		# theEntry['entryAmount'] = amount # 6
 		theEntry['entryAccount'] = account #7
 		theEntry['entryPricePerShare'] = 0.00
 		theEntry['entryRemainingShares'] = 0.00
@@ -40,38 +40,34 @@ class Entry:
 		if type == 'Buy' or type == 'Add Shares' or type == 'Reinvest Dividend':
 			numShares = float(shares.replace(',',''))
 			#
-			# print(type, " ", numShares," of ",symbol," for ", account)
 			if amount.isnumeric():
 				myAmount = abs(float(amount))
 			else:
 				myAmount = 0.00
-			# print("amount:", entry[6]," ",amount)
+			#
 			theEntry['entryRemainingShares'] = numShares
 
 			if numShares > 0.00:
 				pps =  myAmount / numShares
-				# print("pps:",pps," = ", amount , " / " , numShares )
+				#
 				theEntry['entryPricePerShare'] = pps
 
 		self.entry = theEntry
 		self.soldLots = []
 
-		# print('The Entry:' + str( self.entry))
+		#
 
 	def printEntry(self):
 		print(str(self))
 
 	def Field(self,field):
-		# if hasattr(self.entry,field):
-			return str(self.entry[field])
-		# else:
-		#	return "Missing"
+		return str(self.entry[field])
 
 	def __str__(self) :
 		return 'Entry:' + str(self.entry) 
 	
 	def description(self):
-		# print(self.entry['entryDescription'])
+		#
 		return self.entry['entryDescription']
 	
 	def security(self):
@@ -88,18 +84,16 @@ class Entry:
 		if len(myWordList) != 4:
 			print('Error - Unexpected Result from description:' + myDescription + ' Len[' + str(len(myWordList)) + ']')
 			return self.entry['entryPricePerShare']
-			# return 0.00
-		
-		# print(str(myWordList))
+
 		ppsStr = myWordList[3]
 		ppsStr.lstrip()
-		# print('[' + ppsStr + '][' + str(float(ppsStr)) + ']')
+		#
 		
 		return float(ppsStr.replace(',',''))
 		
 	def shares(self):
 		myShares = self.entry.get('entryShares')
-		# print('Shares ' + self.type() + ' [' + myShares + ']')
+		#
 		if myShares == "" or str(myShares) == 'None':
 			return 0.0000
 		else:
@@ -111,7 +105,7 @@ class Entry:
 	def numShares(self):
 		myShares = float(self.entry.get('entryRemainingShares'))
 
-		# print("numShares:",myShares)
+		#
 		if (myShares > 0.00):
 			return myShares
 		else:
@@ -131,7 +125,7 @@ class Entry:
 
 	def amount(self):
 		sAmount = self.entry.get('entryAmount')
-		# print('Entry Amount:' + sAmount)
+		#
 		try:
 			return float( sAmount.replace(',',''))
 		except:
@@ -174,12 +168,12 @@ class Entry:
 		
 		newRemainingShares =  ( float(self.remainingShares()) / oldShares ) * newShares; 
 		self.entry['entryRemainingShares'] = str(newRemainingShares)
-		# print('New Remaining Shares[' + self.entry['entryRemainingShares'] + ']')
+		#
 
 	def entryDate(self):
 		date_elem = self.entry['entryDate'].split('/')
 		try:
-			print("Date:",date_elem)
+			#
 			if len(date_elem[2]) < 4:
 				year = int(date_elem[2])
 				# Since Quicken on exports 2 digit year, I took this simple approach
@@ -191,7 +185,7 @@ class Entry:
 				year = int(date_elem[2])
 
 			myDate = date(year,int(date_elem[0]),int(date_elem[1]))
-			print("My Date:",myDate)
+			#
 		except:
 			print("Could not convert date:",date_elem)
 			raise("Could not convert entry date ")
@@ -208,7 +202,7 @@ class Account:
 			print ('missing data')
 			return
 
-		print("Creating Account ", name)
+		#
 		self.name = name
 		self.entries = [] # dict()
 		self.pending = []
@@ -241,22 +235,44 @@ class Account:
 				print('Lot:' + str(lot) + 'p:' + str(lot.proceeds()))
 
 
+	def removeShares(self, entry ):
+		rShares = abs(entry.shares())
+		#
+		currentShares = self.numShares()
+
+		if round(currentShares, 4) >= round(rShares, 4):
+			# we can go ahead.
+			for e in self.entries:
+				rShares = e.sellShares(rShares)
+				if rShares <= 0:
+					break  # for
+
+			if rShares > 0.00:
+				print(
+					'WARNING SHARES [' + entry.type() + '] WITHOUT Buy ' + str(rShares) + ' ' + entry.symbol())
+				return False
+			else:
+				return True
+
+		else:
+			return False
+
 	def addEntry( self, myEntry  ):
-		# print(myEntry.type(), " For ", myEntry.symbol(), " Shares ", myEntry.shares())
+		#
 		if isinstance( myEntry, Entry ):
 			if myEntry.type() == 'Sell' or myEntry.type() == 'Short Sell':
-				# print('Got a sell:' + str(myEntry))
+				#
 				sellShares = abs(myEntry.shares())
 				curentShares = self.numShares()
 				if round(curentShares,4) >= round(sellShares,4) :
 					
-					# print ('Selling ' + str(sellShares) + ' Shares')
+					#
 					pps = myEntry.price_per_share()
 				
 					for e in self.entries:
 						if e.type() == 'Buy' or e.type() == 'Add Shares':
 							sellShares = e.sellShares(sellShares,pps)
-							# print ('Remaining ' + str(sellShares))
+							#
 							if sellShares <= 0.00:
 								break # for
 
@@ -266,14 +282,13 @@ class Account:
 						return False				
 			
 				else:
-					# queue this entry until we have the shares
-					# print('Queuing Entry[' + str(myEntry) + ']' + 'Sell: ' + str(sellShares))
+					#
 					self.pending.append(myEntry)
 					
 			elif myEntry.type() == 'Stock Split':
 				# 
 				wordList = myEntry.description().split()
-				# print(str(wordList))
+				#
 				newShares = wordList[0]
 				oldShares = wordList[2]
 				for e in self.entries:
@@ -282,14 +297,12 @@ class Account:
 			elif myEntry.type() == 'Remove Shares':
 				removeShares = abs(myEntry.shares())
 				#
-				# print("Removing Shares:", removeShares)
+				#
 				currentShares = self.numShares()
-				# print("Current Shares:",currentShares)
-				# if currentShares == 0:
-				#	self.printAccount()
-
+				#
 				if round(currentShares,4) >= round(removeShares,4):
-					# we can go ahead.  
+					# we can go ahead.
+					#
 					for e in self.entries:
 						removeShares = e.sellShares(removeShares)
 						if removeShares <= 0:
@@ -301,14 +314,11 @@ class Account:
 									
 				else: 
 					# queue this entry until we have the shares
-					print('Queuing Entry[' + str(myEntry) + ']')
 					self.pending.append(myEntry)
 				
 			else:
-				# print("Add:", str(myEntry))
+				#
 				self.entries.append(myEntry)
-				# self.printAccount()
-				# print('Current ' + myEntry.symbol() + ',' + myEntry.type() + ',' + str(myEntry.shares()) + ' shares:' + str(self.numShares()) + ' pend: ' + str(self.totalPending()))
 
 
 		else:
@@ -330,20 +340,20 @@ class Account:
 			amount = p.Field("entryAmount")
 			total = total + abs(float(amount.replace(',','')))
 
-		# print('Pending: ' + str(total))
+		#
 		return total
 
 	def clearPending(self):
-		# print("Clear pending ",len(self.pending)," for ", self.Name())
-		# self.printEntries()
+		#
 		while len(self.pending) > 0:
 			e = self.pending[0]
-			# print(str(e))
-			if self.addEntry(e):
+			#
+			if self.removeShares(e):
 				self.pending.remove(e)
-				# print('Current ' + e[3] + ' shares:' + str(self.numShares()))
+				#
 			else:
-				raise ("ERROR Processing Pending Entry" + str(e))
+				print ("ERROR Processing Pending Entry" + str(e))
+				# raise ("ERROR Processing Pending Entry")
 				return
 				
 			
@@ -368,10 +378,8 @@ class Account:
 			type = e.type()
 			if  type == 'Buy':
 				if e.numShares() > 0:
-					# print('Account ' + self.name + ' Entry Cost ' + str(e.amount()))
 					total = total + e.cost()
 
-		# print('Total Account Cost:' + str(total))
 		return round(total,2)
 
 	def sold( self ) :
@@ -379,19 +387,16 @@ class Account:
 		for e in self.entries:
 			type = e.type()
 			if  type == 'Sell' or type == 'Short Sell':
-				# print ('Acct Sold:' + str(e.amount()))
 				total = total + e.amount()
 
 		return round(total,2)
 
 	def firstBought(self):
 		theDate = date.today()
-		# print(theDate)
 		for e in self.entries:
 			if e.numShares() > 0:
 				myDate = e.entryDate()
 				if myDate < theDate:
-					print("Account Setting date",myDate)
 					theDate = myDate
 
 		return theDate
@@ -412,7 +417,6 @@ class Ticker:
 		self.http = http
 		self.addToAccount( entry )
 		self.token = os.environ.get("TOKEN")
-		print(self.token)
 
 	def worksheetName(self):
 		# assert isinstance(self.name, s)
@@ -424,18 +428,15 @@ class Ticker:
 	def addToAccount(self, entry ):
 		if isinstance(entry,Entry) == False:
 			raise("Ticker.addToAccount did not get an Entry")
-			# print("Ticker.addToAccount did not get an Entry:",entry)
 			return
 
 		acct_name = entry.Field("entryAccount")
 		a = self.accounts.get(acct_name) 
 		if a == None:
-			# print( "added acct name:" + acct_name )
 			a = Account(acct_name, entry )
 			self.accounts[acct_name] = a
 		else:
 			# add the row
-			# print( "just adding row:" )
 			a.addEntry( entry )
 		
 			
@@ -444,7 +445,6 @@ class Ticker:
 
 	def printAccounts( self ):
 		for key, acct in self.accounts.items():
-			# print( 'key:' +  key  + 'value:' + str(acct))
 			acct.printAccount()
 
 	def numSharesAccount( self, acct_name ):
@@ -491,8 +491,7 @@ class Ticker:
 	# stock_ticker = self.symbol.lower()
 	# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/dividends/1y'
 	# url = 'https://api.iextrading.com/1.0./stock/' + stock_ticker + '/dividends/1y'
-	# print('url:' + url )
-	
+
 	def current_dividend( self ):
 	
 		if hasattr(self, 'dividend_amount'):
@@ -501,16 +500,15 @@ class Ticker:
 			myData = self.get_data('dividend_data')
 
 			if isinstance(myData, list):
-				# print('got my list')
-				# self.dividend_data = myData
+				#
 				self.dividend_multiplier = float(len(myData))
 				firstOne = True
 				for myJson in myData:
-					# print(myJson)
+					#
 					if firstOne == True:
 						self.dividend_amount =  float(myJson.get('amount'))
-						# print( 'amount:' + str(self.dividend_amount))
-						# print( 'yearly:' + str(self.dividend_amount * self.dividend_multiplier))
+						#
+						#
 						firstOne = False
 						return self.dividend_amount
 			
@@ -530,8 +528,7 @@ class Ticker:
 		return float( self.current_dividend() * self.dividend_multiplier )
 	
 	def get_data(self,req_type):
-		
-		# print('getting[' + req_type + ']')
+		#
 		if hasattr(self, req_type):
 			if req_type == 'quote_data':
 				return self.quote_data
@@ -616,8 +613,7 @@ class Ticker:
 
 	def lastest_eps(self):
 		earnings = self.get_data('stats_data')
-		# print("Here:", self.name,":",earnings)
-
+		#
 		if earnings == None:
 			print(self.name," No earnings")
 			return None
@@ -634,10 +630,10 @@ class Ticker:
 		theDate = date.today()
 		for key, acct in self.accounts.items():
 			myDate = acct.firstBought()
-			print("Account FB:",myDate)
+			#
 			if myDate < theDate:
 				theDate = myDate
-				print("ticker setting date",theDate)
+				#
 
 		return theDate
 
@@ -663,11 +659,10 @@ def createSheet( symbols, acct_list, details ):
 	# for a in acct_list:
 	# 	header = header + ',' + a
 
-	 # print(header)
+	 #
 
 	for key, value in symbols.items():
-		
-		# print('Symbol: ' + key)
+		#
 		t  = symbols[key]
 		
 		# Since we can't guarantee the order of how the data is read, there is
@@ -710,13 +705,11 @@ def createSheet( symbols, acct_list, details ):
 
 		theDate = t.firstBought()
 		thisRow['First Purchase'] = theDate.strftime('%m/%d/%Y')
-		print("First Purchased:",theDate.strftime("%m/%d/%Y"))
+		#
 		today = date.today()
 		dateDelta = today - theDate
 		thisRow['Days Owned'] = dateDelta.days
 
-		# print(str(thisRow))
-		
 		details.append(thisRow)
 
 def ProcessInfo( info, symbols, accounts, http):
@@ -732,20 +725,17 @@ def ProcessInfo( info, symbols, accounts, http):
 
 def ProcessEntry( entry, symbols, accounts, http):
 
-	# print("ProcessEntry:", str(entry))
 	if isinstance(entry, Entry):
 		s = entry.Field("entrySymbol")
-		# print("symbol:",s)
 
 		# TODO:  Add a way to limit which symbols to look at.
-		# if s != "PM":
+		# if s != "KHC":
 		# 	return
 
 		if s == str(None) or s == "Missing" or s == "DEAD" or s == 'Symbol':
 			return
 
 		t = symbols.get(s)
-		# print("Symbol ",s," Ticker:", str(t))
 
 		if t == None:
 			#
@@ -753,16 +743,13 @@ def ProcessEntry( entry, symbols, accounts, http):
 
 			t	 = Ticker( entry, http)
 			symbols[s] = t
-			# print ("added:" + s )
 		else:
-			# print ("exists:" + s )
 			t.addToAccount(entry)
 
 		a = entry.Field("entryAccount")
 		try:
 			accounts.index(a)
 		except ValueError:
-			# print( 'adding account: ' + a )
 			accounts.append(a)
 
 	else:
@@ -795,18 +782,14 @@ if __name__ == "__main__":
 	lookupReader = csv.reader(open("lookup.csv", newline=''), delimiter=',', quotechar='"')
 	for row in lookupReader:
 		if len(row) == 2:
-			# print(row[0],row[1])
 			lookup[row[0]] = row[1]
 		else:
-			print("huh:", row)
-
+			raise("Invalid row")
 
 	stockReader = csv.reader(open('quicken_data.csv', newline=''), delimiter=',',quotechar='"')
 
 	i = 0
 	for row in stockReader:
-
-		# print(len(row),row[3])
 
 		if (len(row) < 10):
 			print("skipping[", i, "] items[", len(row), "] [", row, "]")
