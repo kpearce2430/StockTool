@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     #
     # prepare the input csv and excel worksheet file names.
-    basename = 'KP2019-export-2019-09-14'
+    basename = 'KP2019-export-2019-09-19'
     infilename = basename + '.csv'
     outfilename = basename + '.xlsx'
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # Load the Portfolio Value CSV file.  This provides the last price when it's not available
     # through iexdata.
     pValues = dict()
-    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-09-14.csv",pValues, lookUps)
+    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-09-19.csv",pValues, lookUps)
     pvalue.WritePortfolioValueWorksheet(pValues,workbook)
 
     #
@@ -84,6 +84,11 @@ if __name__ == "__main__":
         # add row to the master list
         #
         # "date", "type", "security","security_payee","description","shares","amount","account"
+        #
+        amt = row.get_value("amount")
+        if row.get_value("type") == 'Reinvest Dividend':
+            amt = row.get_value("invest_amt")
+
         e = bdata.Entry(
             row.get_value("date"),
             row.get_value("type"),
@@ -91,7 +96,7 @@ if __name__ == "__main__":
             row.get_value("security"),
             row.get_value("description"),
             row.get_value("shares"),
-            row.get_value("amount"),
+            amt,
             row.get_value("account"))
 
         bdata.ProcessEntry(e,symbols,unique_accounts,http)
