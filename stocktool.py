@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.
 # ----------------------------------------------------------------------------
 #
-
+import sys
 import csv
 # import json
 import xlsxwriter
@@ -44,16 +44,32 @@ if __name__ == "__main__":
 
     #
     # prepare the input csv and excel worksheet file names.
-    basename = 'KP2019-export-2019-09-19'
-    infilename = basename + '.csv'
-    outfilename = basename + '.xlsx'
+    #
+    inFilename = "transactions.csv"
+    outFilename = "stock_analysis.xlsx"
+    lookupFilename = "lookup.csv"
+    portfolioFilename = "portfolio_value.csv"
+
+    i = 0
+    for i in range(1, len(sys.argv)):
+
+        if i == 1:
+            inFilename = sys.argv[i]
+        elif i == 2:
+            outFilename = sys.argv[i]
+        elif i == 3:
+            lookupFilename = sys.argv[i]
+        elif i == 4:
+            portfolioFilename = sys.argv[i]
+        else:
+            print("Ignoring extra arguments", sys.argv[i])
 
     # create the workbook
-    workbook = xlsxwriter.Workbook(outfilename)
+    workbook = xlsxwriter.Workbook(outFilename)
 
     # load up the lookup table
     lookUps = dict()
-    LoadLookup('lookup.csv', lookUps)
+    LoadLookup(lookupFilename, lookUps)
     WriteLookupWorkSheet(lookUps,workbook)
 
     # load the portfolio value
@@ -61,14 +77,14 @@ if __name__ == "__main__":
     # Load the Portfolio Value CSV file.  This provides the last price when it's not available
     # through iexdata.
     pValues = dict()
-    pvalue.LoadPortfolioValue("KP2019 - Investing - Portfolio Value - Group by Security - 2019-09-19.csv",pValues, lookUps)
+    pvalue.LoadPortfolioValue(portfolioFilename,pValues, lookUps)
     pvalue.WritePortfolioValueWorksheet(pValues,workbook)
 
     #
     # read in the transactions and write them to their own worksheet for any ad-hoc analysis.
     #
     translist = []
-    transaction.LoadTransactions(infilename,translist,lookUps)
+    transaction.LoadTransactions(inFilename,translist,lookUps)
     transaction.WriteTransactionWorksheet(translist,workbook)
 
     #
