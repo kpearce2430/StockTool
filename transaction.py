@@ -1,4 +1,5 @@
 
+import sys
 import csv
 import xlsxwriter
 import json
@@ -35,10 +36,10 @@ class Transaction:
         return self.get_value('date')
 
 def TransactionJsonTags():
-    return ["date", "type", "security","security_payee","description","shares","invest_amt","amount","account","year","month"]
+    return ["date", "type", "security","symbol","security_payee","description","shares","invest_amt","amount","account","year","month"]
 
 def TransactionHeaders():
-    return ["Date","Type","Security","Security/Payee","Description/Category","Shares","Invest Amt","Amount","Account","Year","Month"]
+    return ["Date","Type","Security","Symbol","Security/Payee","Description/Category","Shares","Invest Amt","Amount","Account","Year","Month"]
 
 
 def returnTag(hdr):
@@ -73,6 +74,7 @@ def LoadTransactions(infilename, transactions, lookups ):
     myTags = []
     myHeaders = []
     securityRow = -1
+    symbolRow = -1
     for row in transReader:
 
         i = i + 1
@@ -94,6 +96,9 @@ def LoadTransactions(infilename, transactions, lookups ):
                 myTags.append(tag)
                 if r == "Security":
                     securityRow = j
+                if r == "Symbol":
+                    symbolRow = j
+
                 j = j + 1
 
             print("# Tags:", len(myTags))
@@ -119,9 +124,17 @@ def LoadTransactions(infilename, transactions, lookups ):
 
             # Get the symbols from the lookup
             if myHeaders[j] == 'Security':
+                # I found over the years that symbols occassionally get reused.  I use
+                # lookups to override any symbols that Quicken may put in.  If there isn't
+                # a symbol in lookup and symbols are provided in the sheet.  I use the
+                # sheet.
                 value = lookups.get(row[j])
                 if value == None:
-                    value = "Missing"
+                    if symbolRow != -1:
+                        value = row[symbolRow]
+                    else:
+                        value = "Missing"
+
                 row[j] = value
 
             if myHeaders[j] == 'Shares' or myHeaders[j] == 'Amount' or myHeaders[j] == 'Invest Amt':
@@ -204,10 +217,21 @@ def WriteTransactionWorksheet( transactions, workbook):
 if __name__ == "__main__":
     lookUps = dict()
     transactions = []
-    filename = "KP2019-export-2019-09-01.csv"
-    LoadTransactions(filename, transactions, lookUps)
+    inFilename = "transactions.csv"
+    outFilename = "transactions.xlsx"
 
-    workbook = xlsxwriter.Workbook("transactions.xlsx")
+    i = 0
+    for i in range(1, len(sys.argv)):
+
+        if i == 1:
+            inFilename = sys.argv[i]
+        elif i == 2:
+            outFilename = sys.argv[i]
+        else:
+            print("Ignoring extra arguments",sys.argv[i])
+
+    LoadTransactions(inFilename, transactions, lookUps)
+    workbook = xlsxwriter.Workbook(outFilename)
     WriteTransactionWorksheet(transactions, workbook)
     workbook.close()
 
