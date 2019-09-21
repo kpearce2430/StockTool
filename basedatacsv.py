@@ -1,4 +1,5 @@
 
+import sys
 import os
 import csv
 import json
@@ -770,6 +771,22 @@ def ProcessRow(row, symbols, accounts, http):
 
 if __name__ == "__main__":
 
+	inFilename = "portfolio_value.csv"
+	outFilename = "portfolio_value.xlsx"
+	lookupFilename = "lookup.csv"
+
+	i = 0
+	for i in range(1, len(sys.argv)):
+
+		if i == 1:
+			inFilename = sys.argv[i]
+		elif i == 2:
+			outFilename = sys.argv[i]
+		elif i == 3:
+			lookupFilename = sys.argv[i]
+		else:
+			print("Ignoring extra arguments", sys.argv[i])
+
 
 	http = urllib3.PoolManager()
 	urllib3.disable_warnings()
@@ -779,14 +796,14 @@ if __name__ == "__main__":
 	details = []
 	lookup = dict()
 
-	lookupReader = csv.reader(open("lookup.csv", newline=''), delimiter=',', quotechar='"')
+	lookupReader = csv.reader(open(lookupFilename, newline=''), delimiter=',', quotechar='"')
 	for row in lookupReader:
 		if len(row) == 2:
 			lookup[row[0]] = row[1]
 		else:
 			raise("Invalid row")
 
-	stockReader = csv.reader(open('quicken_data.csv', newline=''), delimiter=',',quotechar='"')
+	stockReader = csv.reader(open(inFilename, newline=''), delimiter=',',quotechar='"')
 
 	i = 0
 	for row in stockReader:
