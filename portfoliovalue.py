@@ -1,4 +1,4 @@
-
+import sys
 import csv
 import xlsxwriter
 
@@ -118,10 +118,23 @@ def WritePortfolioValueWorksheet(pvalue, workbook):
 
 if __name__ == "__main__":
     pvalue = dict()
-    name = "KP2019 - Investing - Portfolio Value - Group by Security - 2019-08-31.csv"
-    workbook = xlsxwriter.Workbook("portfolios.xlsx")
 
-    LoadPortfolioValue(name,pvalue, None)
+    inFilename = "portfolio_value.csv"
+    outFilename = "portfolio_value.xlsx"
+
+    i = 0
+    for i in range(1, len(sys.argv)):
+
+        if i == 1:
+            inFilename = sys.argv[i]
+        elif i == 2:
+            outFilename = sys.argv[i]
+        else:
+            print("Ignoring extra arguments",sys.argv[i])
+
+    workbook = xlsxwriter.Workbook(outFilename)
+
+    LoadPortfolioValue(inFilename,pvalue, None)
     WritePortfolioValueWorksheet(pvalue,workbook)
     workbook.close()
 
