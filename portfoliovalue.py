@@ -1,6 +1,7 @@
 import sys
 import csv
 import xlsxwriter
+import common_xls_formats
 
 def PortfolioHeaders():
     return [ "Name","Symbol","Quote","Price Day Change","Price Day Change (%)","Shares","Cost Basis","Market Value","Average Cost Per Share","Gain/Loss 12-Month","Gain/Loss","Gain/Loss (%)" ]
@@ -76,14 +77,12 @@ def LoadPortfolioValue(name, pvalue, lookups = None):
 #
 #
 #
-def WritePortfolioValueWorksheet(pvalue, workbook):
+def WritePortfolioValueWorksheet(pvalue, workbook, formats):
     if isinstance(pvalue,dict) == False:
         print("Invalid argument pvalue")
         return
 
     worksheet = workbook.add_worksheet('Portfolio')
-    money_fmt = workbook.add_format({'num_format': '$#,##0.00'})
-    percent_fmt = workbook.add_format({'num_format': '0.00%'})
 
     myKeys = pvalue.keys()
     # myKeys.sort()
@@ -93,7 +92,7 @@ def WritePortfolioValueWorksheet(pvalue, workbook):
     myRow = 0
     myColumn = 0
     for h in headers:
-        worksheet.write(myRow,myColumn,h)
+        worksheet.write(myRow,myColumn,h,formats.header_format)
         myColumn = myColumn + 1
 
     myRow = 1
@@ -103,13 +102,19 @@ def WritePortfolioValueWorksheet(pvalue, workbook):
             myColumn = 0
             for l in labels:
                 if l == "quote" or l == "price_day_change" or l == "shares":
-                    worksheet.write_number(myRow, myColumn, float(v[l]))
-                elif l == "cost_basis" or l == "market_value" or l == "gain_loss":
-                    worksheet.write_number(myRow, myColumn, float(v[l]), money_fmt )
+                    try:
+                        worksheet.write_number(myRow, myColumn, float(v[l]),formats.numberFormat(myRow))
+                    except:
+                        worksheet.write(myRow, myColumn, v[l], formats.textFormat(myRow))
+                elif l == "cost_basis" or l == "market_value" or l == "gain_loss" or l == 'avg_cost_per_share'  or l == 'gain_loss_last_12m':
+                    try:
+                        worksheet.write_number(myRow, myColumn, float(v[l]), formats.currencyFormat(myRow) )
+                    except:
+                        worksheet.write(myRow, myColumn, v[l], formats.textFormat(myRow))
                 elif l == "price_day_change_pct" or l == "gain_loss_pct":
-                    worksheet.write_number(myRow, myColumn, float(v[l])/100, percent_fmt)
+                    worksheet.write_number(myRow, myColumn, float(v[l])/100, formats.percentFormat(myRow))
                 else:
-                    worksheet.write(myRow,myColumn,v[l])
+                    worksheet.write(myRow,myColumn,v[l],formats.textFormat(myRow))
 
                 myColumn = myColumn + 1
             myRow = myRow + 1
@@ -133,9 +138,10 @@ if __name__ == "__main__":
             print("Ignoring extra arguments",sys.argv[i])
 
     workbook = xlsxwriter.Workbook(outFilename)
+    formats = common_xls_formats.XLSFormats(workbook,5)
 
     LoadPortfolioValue(inFilename,pvalue, None)
-    WritePortfolioValueWorksheet(pvalue,workbook)
+    WritePortfolioValueWorksheet(pvalue,workbook,formats)
     workbook.close()
 
-    print(pvalue)
+    # print(pvalue)
