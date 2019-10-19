@@ -368,8 +368,10 @@ class Account:
 
 	def dividends_paid( self ):
 		total = 0.00
+		firstDate = self.firstBought()
 		for e in self.entries:
-			total = total + e.dividendPaid()
+			if e.entryDate() > firstDate:
+				total = total + e.dividendPaid()
 
 		return round(total,2)
 
@@ -422,6 +424,13 @@ class Ticker:
 	def worksheetName(self):
 		# assert isinstance(self.name, s)
 		return self.symbol + ' ' + self.name
+
+	def worksheetURL(self):
+		worksheetName = self.worksheetName()
+		if len(worksheetName) > 30:
+			worksheetName = worksheetName[:30]
+
+		return  "internal: '" + worksheetName + "'!A1"
 
 	def __str__(self) :
 		return 'Ticker:' + self.symbol + ' ' + self.name + ' ' + str(self.numShares()) + ' ' + str(self.current_dividend()) + ' ' + str(self.dividend_next12mo()) + ' ' + str(self.latest_price())
@@ -662,7 +671,7 @@ def createSheet( symbols, acct_list, details ):
 
 	 #
 
-	for key, value in symbols.items():
+	for key, value in sorted(symbols.items()):
 		#
 		t  = symbols[key]
 		
