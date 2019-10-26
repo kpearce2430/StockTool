@@ -1,4 +1,6 @@
-
+#
+# Copyright (c) 2018 Pearce Software Solutions. All rights reserved.
+#
 import sys
 import csv
 import xlsxwriter

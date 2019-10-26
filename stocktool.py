@@ -1,4 +1,3 @@
-
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -7,9 +6,11 @@
 # this stuff is worth it, you can buy me a beer in return.
 # ----------------------------------------------------------------------------
 #
+# Copyright (c) 2018 Pearce Software Solutions. All rights reserved.
+#
 import sys
 import csv
-# import json
+import json
 import xlsxwriter
 import basedatacsv as bdata
 import portfoliovalue as pvalue
@@ -46,6 +47,33 @@ def WriteLookupWorkSheet( lookups, workbook, formats, startRow = 0, startCol = 0
         worksheet.write(myRow, myColumn+1, v,formats.textFormat(myRow))
         myRow = myRow + 1
 
+def printData( labelData, ticker, formats, row = 0, col = 0 ):
+    myRow = row;
+    myColumn = col
+
+    for d in labelData:
+        tag = d.tag
+        field = ticker.get(tag)
+        if field != None:
+            worksheet.write(myRow, myColumn, d.label, formats.textFormat(myRow))
+            if d.format != None:
+                # print(d.tag,",",d.format)
+                if d.type == 'timestamp':
+                    tsInt = int(field)
+                    if tsInt > 0:
+                        tsDt = datetime.datetime.fromtimestamp(tsInt / 1000.0)
+                        worksheet.write(myRow, myColumn + 1, tsDt, d.format(myRow))
+                    else:
+                        print("Field ", d.tag, " has no timestime value:", field)
+                        worksheet.write(myRow, myColumn + 1, field, formats.textFormat(myRow))
+                else:
+                    worksheet.write(myRow, myColumn + 1, field, d.format(myRow))
+            else:
+                print("Missing format for ", d.tag, ",", d.type)
+                worksheet.write(myRow, myColumn + 1, field, None )
+            myRow = myRow + 1
+
+    return myRow
 
 if __name__ == "__main__":
 
@@ -107,8 +135,9 @@ if __name__ == "__main__":
     for row in translist:
         # add row to the master list
         #
-        # "date", "type", "security","security_payee","description","shares","amount","account"
-        #
+        # if row.get_value("symbol") != "HD":
+        #   continue
+
         amt = row.get_value("amount")
         if row.get_value("type") == 'Reinvest Dividend':
             amt = row.get_value("invest_amt")
@@ -237,8 +266,6 @@ if __name__ == "__main__":
     for d in details:
         myColumn = 0
 
-        # myOrd = ord('A')
-
         if d['Latest Price'] != 0:
             # print("Skipping",d['Name'])
             continue
@@ -300,6 +327,7 @@ if __name__ == "__main__":
     worksheet.write(0,myColumn+2,'ROI',formats.headerFormat())
     worksheet.write(0,myColumn+3,'Annual Return',formats.headerFormat())
     worksheet.write(0,myColumn+4,'CAGR', formats.headerFormat())
+    worksheet.write(0,myColumn+5,'Projected Dividends',formats.headerFormat())
 
     # myColumn = stockOrd
     for i in range(2,myRow+1):
@@ -328,11 +356,24 @@ if __name__ == "__main__":
         # =IF(N37>0,POWER(((L37+M37)/N37),(365/U37))-1,0)
         formula = "=if(" + totalCostCol + str(i) + ">0,power(((" + totalValueCol + str(i) + "+" + dividendsRecCol + str(i) + ")/" + totalCostCol + str(i) + "),(365 / " + daysOwnedCol + str(i) + "))-1,0)"
         worksheet.write_formula(i-1,myColumn+4,formula,formats.percentFormat(i-1))
+        #
+        # Projected Dividends
+        # =IF(P17>0,Q17*J17,(M17/U17)*365)
+        #  if Yearly Dividends > 0, then Yearly Dividend * Number of shares, else (Total Dividends / Number of Days owned) * 365
+        formula = "=if(" + yearlyDividendCol + str(i) + "> 0," + yearlyDividendCol + str(i) + "*" + totalSharesCol + str(i) + ", (" + dividendsRecCol + str(i) + "/" + daysOwnedCol + str(i) + ") * 365)"
         # print(formula)
+        worksheet.write_formula(i-1, myColumn+5, formula, formats.currencyFormat(i-1))
 
     # marker
     print(myRow,",",myColumn)
 
+    iexFormats = common_xls_formats.InitType(formats)
+    iexQuoteData = common_xls_formats.loadDataLabels("quote_data_labels.csv", iexFormats)
+    iexStatsData = common_xls_formats.loadDataLabels("stats_data_labels.csv", iexFormats)
+    iexDividendData = common_xls_formats.loadDataLabels("dividend_data_labels.csv",iexFormats)
+    iexNewsData = common_xls_formats.loadDataLabels("news_data_labels.csv",iexFormats)
+
+    maxRow = myRow
     for key, value in sorted(symbols.items()):
 
         t = symbols[key]
@@ -349,7 +390,75 @@ if __name__ == "__main__":
         myUrl = "internal: 'Stock Analysis'!A1"
         worksheet.write_url(0,0,myUrl,None,"Back To Stock Analysis", None)
 
-        T.writeTransactions(1,0,worksheet,transaction.pickSymbol,key)
+        myRow =3
+        myColumn = 0
+        maxRow = myRow
+
+        for data_type in ['quote_data','stats_data','dividend_data','news_data']:
+
+            qdata = t.get_data(data_type)
+            if qdata == None:
+                continue
+            # print(qdata)
+            if data_type == 'quote_data':
+                worksheet.write(myRow, myColumn, "Quote Data", formats.headerFormat())
+                worksheet.write(myRow, myColumn + 1, "", formats.headerFormat())
+                myRow = printData(iexQuoteData,qdata,formats,myRow+1,myColumn)
+
+            elif data_type == 'stats_data':
+                worksheet.write(myRow, myColumn, "Stats Data", formats.headerFormat())
+                worksheet.write(myRow, myColumn + 1, "", formats.headerFormat())
+                myRow = printData(iexStatsData,qdata,formats,myRow+1,myColumn)
+
+            elif data_type == 'dividend_data':
+                count = 1
+                for div in qdata:
+                    worksheet.write(myRow, myColumn, "Dividend Data", formats.headerFormat())
+                    worksheet.write(myRow, myColumn + 1, str(count), formats.headerFormat())
+                    myRow = printData(iexDividendData,div,formats,myRow+1,myColumn)
+                    count = count+1
+
+            elif data_type == 'news_data':
+                count = 1
+                for div in qdata:
+                    worksheet.write(myRow, myColumn, "News Data", formats.headerFormat())
+                    worksheet.write(myRow, myColumn + 1, str(count), formats.headerFormat())
+                    myRow = printData(iexNewsData,div,formats,myRow+1,myColumn)
+                    count = count+1
+
+            elif isinstance(qdata,dict):
+                for item in qdata:
+                    # print(key,":",qdata[item])
+                    worksheet.write(myRow,myColumn,item,formats.textFormat(myRow))
+                    worksheet.write(myRow,myColumn+1,qdata[item],formats.textFormat(myRow))
+                    myRow = myRow + 1
+
+            else:
+                if isinstance(qdata,list) and (data_type == 'dividend_data' or data_type == 'news_data'):
+                    count = 1
+                    for div in qdata:
+                        worksheet.write(myRow,myColumn,data_type ,formats.headerFormat())
+                        worksheet.write(myRow,myColumn + 1,str(count),formats.headerFormat())
+                        myRow = myRow+1
+                        for  datam in div:
+                            # print(key,":",qdata[item])
+                            worksheet.write(myRow, myColumn, datam, formats.textFormat(myRow))
+                            worksheet.write(myRow, myColumn + 1, div[datam], formats.textFormat(myRow))
+                            myRow = myRow + 1
+                        count = count + 1
+                else:
+                    print(key,":",data_type,":",qdata)
+
+            if myRow > maxRow:
+                maxRow = myRow
+
+            myRow = 3
+            myColumn = myColumn + 3
+
+
+        # print("writing transactions for:",key," maxRow:",maxRow)
+
+        T.writeTransactions(maxRow+1,0,worksheet,transaction.pickSymbol,key)
 
     # last things, write out the looks-ups.
     WriteLookupWorkSheet(lookUps,workbook,formats)

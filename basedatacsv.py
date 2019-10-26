@@ -1,4 +1,6 @@
 
+# Copyright (c) 2018 Pearce Software Solutions. All rights reserved.
+
 import sys
 import os
 import csv
@@ -544,7 +546,7 @@ class Ticker:
 				return self.quote_data
 			elif req_type == 'stats_data':
 				return self.stats_data
-			elif req_type == 'news':
+			elif req_type == 'news_data':
 				return self.news_data
 			elif req_type == 'chart':
 				return self.chart_data
@@ -566,7 +568,7 @@ class Ticker:
 			# all the data
 			#  TODO: need to build cache for each item below to save transaction costs.
 			#
-			url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,dividends&range=1y&last=3&token=' + self.token # '
+			url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,news,dividends&range=1y&last=3&token=' + self.token # '
 			#
 			#
 			# url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/quote'
@@ -574,7 +576,12 @@ class Ticker:
 			
 			if r.status == 200:
 				myData = json.loads(r.data.decode('utf-8'))
+				# print(myData)
 				if isinstance(myData, dict):
+					# if myData.get('news') == None:
+					#	print("Where is the news?")
+					#	sys.exit(-2)
+
 					self.quote_data =  myData.get('quote')
 					self.stats_data =  myData.get('stats')
 					self.news_data = myData.get('news')
@@ -588,6 +595,7 @@ class Ticker:
 			else:
 				print('Request Failed[' + str(r.status) + '] ' + str(r) )
 				print("URL: ", url)
+				sys.exit(-1)
 				
 		self.quote_data =  None
 		self.stats_data =  None
@@ -625,11 +633,11 @@ class Ticker:
 		earnings = self.get_data('stats_data')
 		#
 		if earnings == None:
-			print(self.name," No earnings")
+			 #print(self.name," No earnings")
 			return None
 
 		myearnings = earnings.get('ttmEPS')
-		print(self.name,' earnings:',myearnings)
+		# print(self.name,' earnings:',myearnings)
 		if myearnings != None:
 			return myearnings
 		else:
