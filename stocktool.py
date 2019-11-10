@@ -30,22 +30,29 @@ def LoadLookup(name, lookup):
 
 def WriteLookupWorkSheet( lookups, workbook, formats, startRow = 0, startCol = 0):
 
-
     myRow = startRow
     myColumn = startCol
 
     worksheet = workbook.add_worksheet('Lookups')
 
-    worksheet.write(myRow,myColumn,"Lookup Key",formats.headerFormat())
-    worksheet.write(myRow,myColumn+1,"Lookup Value",formats.headerFormat())
-    myRow = 1
+    keyName = "Lookup Key"
+    ciKey = common_xls_formats.ColumnInfo(worksheet,keyName,myColumn,1,1,100)
+    ciKey.columnWrite(myRow,myColumn,keyName,'text',formats.headerFormat())
 
+    valueName = "Lookup Value"
+    ciValue = common_xls_formats.ColumnInfo(worksheet,valueName,myColumn+1,1,1,100)
+    ciValue.columnWrite(myRow,myColumn+1,valueName,'text',formats.headerFormat(),True)
+
+    myRow = myRow + 1
     myKeys = lookups.keys()
     for k in myKeys:
         v = lookups[k]
-        worksheet.write(myRow, myColumn, k,formats.textFormat(myRow))
-        worksheet.write(myRow, myColumn+1, v,formats.textFormat(myRow))
+        ciKey.columnWrite(myRow,myColumn,k,'text',formats.textFormat(myRow))
+        ciValue.columnWrite(myRow,myColumn+1,v,'text',formats.textFormat(myRow))
         myRow = myRow + 1
+
+    ciKey.columnSetSize(1.4)
+    ciValue.columnSetSize(1.4)
 
 def printData( labelData, ticker, formats, row = 0, col = 0 ):
     myRow = row;
@@ -163,14 +170,16 @@ if __name__ == "__main__":
     worksheet = workbook.add_worksheet('Stock Analysis')
 
     # First 2 columns are Name and Symbol
-    myKeys = []
-    # myColumn = xlsxwriter.utility.xl_col_to_name(0) + "1" # xl_col_to_name
-    worksheet.write(0,0,'Name',formats.headerFormat())
-    myKeys.append('Name')
+    ColumnInfo = []
+    # Name Column
+    ci = common_xls_formats.ColumnInfo(worksheet,"Name",0,1,40)
+    ci.columnWrite(0,0,"Name",'text',formats.headerFormat())
+    ColumnInfo.append(ci)
 
-    # myColumn = xlsxwriter.utility.xl_col_to_name(1) + "1"
-    worksheet.write(0,1,'Symbol',formats.headerFormat())
-    myKeys.append('Symbol')
+    # Symbol Column
+    ci = common_xls_formats.ColumnInfo(worksheet,"Symbol",1,1,10)
+    ci.columnWrite(0,1,"Symbol",'text',formats.headerFormat())
+    ColumnInfo.append(ci)
 
     myColumn = 2
     # Add in the individual accounts next
@@ -178,13 +187,18 @@ if __name__ == "__main__":
     for acct in unique_accounts:
         # myColumn = xlsxwriter.utility.xl_col_to_name(myColumn) + "1"
         # print("myColumn:",myColumn)
-        worksheet.write(0,myColumn,acct,formats.headerFormat())
-        myKeys.append(acct)
+        ci = common_xls_formats.ColumnInfo(worksheet,acct,myColumn,1,10)
+        ci.columnWrite(0,myColumn,acct,'text',formats.headerFormat(),True)
+
+        # worksheet.write(0,myColumn,acct,formats.headerFormat())
+        ColumnInfo.append(ci)
         myColumn = myColumn + 1
 
     # add in Total Shares
-    myKeys.append('Total Shares')
-    worksheet.write(0,myColumn, 'Total Shares',formats.headerFormat())
+    ci = common_xls_formats.ColumnInfo(worksheet,'Total Shares',myColumn)
+    ColumnInfo.append(ci)
+    ci.columnWrite(0,myColumn,'Total Shares','text',formats.headerFormat(),True)
+    # worksheet.write(0,myColumn, 'Total Shares',formats.headerFormat())
     totalSharesCol = xlsxwriter.utility.xl_col_to_name(myColumn)
     myColumn = myColumn + 1
 
@@ -193,178 +207,220 @@ if __name__ == "__main__":
         # print("d:",d)
         for k in d:
             # print("k:",k)
-            try:
-                # if it's already in my list of keys
-                # continue on.
-                myKeys.index(k)
+
+            dup = False
+            for ci in ColumnInfo:
+                if ci.name == k:
+                    print("Skipping ",k," duplicate")
+                    dup = True
+                    break; # for ci
+
+            if dup == True:
                 continue
-            except ValueError:
-                myKeys.append(k)
-                # myColumn = xlsxwriter.utility.xl_col_to_name(myColumn)
-                # currentA = myColumn + "1"
-                worksheet.write(0,myColumn, k, formats.headerFormat())
 
-                if k == 'Latest Price':
-                    latestPriceCol = xlsxwriter.utility.xl_col_to_name(myColumn)
-                elif k == 'Total Value':
-                    totalValueCol = xlsxwriter.utility.xl_col_to_name(myColumn)
-                elif k == 'Total Cost':
-                    totalCostCol = xlsxwriter.utility.xl_col_to_name(myColumn)
-                elif k == 'Yearly Dividend':
-                    yearlyDividendCol = xlsxwriter.utility.xl_col_to_name(myColumn)
-                elif k == 'Days Owned':
-                    daysOwnedCol = xlsxwriter.utility.xl_col_to_name(myColumn)
-                elif k == 'Dividends Received':
-                    dividendsRecCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            ci = common_xls_formats.ColumnInfo(worksheet,k,myColumn,1,9,9)
+            ColumnInfo.append(ci)
+            ci.columnWrite(0,myColumn,k,'text',formats.headerFormat(),True)
 
-                myColumn = myColumn + 1
-                # print("adding ",k)
+            if k == 'Latest Price':
+                latestPriceCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            elif k == 'Total Value':
+                totalValueCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            elif k == 'Total Cost':
+                totalCostCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            elif k == 'Yearly Dividend':
+                yearlyDividendCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            elif k == 'Days Owned':
+                daysOwnedCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            elif k == 'Dividends Received':
+                dividendsRecCol = xlsxwriter.utility.xl_col_to_name(myColumn)
 
-    # push it out to the worksheet
+            myColumn = myColumn + 1
+
+    # push the fields that have a price to the worksheet
     myRow = 1
     for d in details:
         myColumn = 0
 
-        if d['Latest Price'] == 0:
-            # print("Skipping ",d["Name"])
-            continue
+        # if d['Latest Price'] == 0:
+        #    print("Skipping ",d["Name"])
+        #    continue
 
-        for l in myKeys:
+        for ci in ColumnInfo:
+        # for l in myKeys:
             # if xRow == 2:
             #    print("l:",l)
 
-            if l == "Name":
+            if ci.name == "Name":
                 s = d['Symbol']
                 ticker = symbols[s]
                 myUrl = ticker.worksheetURL()
             else:
                 myUrl = None
 
-            v = d[l]
+            v = d[ci.name]
             # myColumn = xlsxwriter.utility.xl_col_to_name(myColumn)
             # currentA = myColumn + str(xRow)
 
             if myUrl != None:
-                worksheet.write_url(myRow,myColumn,myUrl,formats.textFormat(myRow),v,None)
-                # worksheet.write_url(myRow,myColumn,myUrl,None,v,None)
+                #
+                # If the URL is present it can only be the Name column.  If the URL wasn't
+                # available for the Name, the logic would have it write the Name in the section
+                # below
+                #
+                ci.columnWrite(myRow,myColumn,v,'url',formats.textFormat(myRow),False,myUrl)
+
             else:
-                if l == "Total Value" or l == "Dividends Received" or l == "Total Cost" or l == "Average Price" or l == "Current Dividend" or l == "Yearly Dividend" or l == "Net" or l == 'Latest EPS':
-                    worksheet.write(myRow,myColumn,v,formats.currencyFormat(myRow))
-                elif l == 'First Purchase':
-                    worksheet.write(myRow, myColumn, v, formats.dateFormat(myRow))
+                if  ci.name == "Dividends Received" or ci.name == "Total Cost" or ci.name == "Average Price" or \
+                        ci.name == "Current Dividend" or ci.name == "Yearly Dividend" or  ci.name == 'Latest EPS':
+
+                    ci.columnWrite(myRow,myColumn,v,'currency',formats.currencyFormat(myRow))
+
+                elif ci.name == 'Latest Price':
+                    if d['Latest Price'] != 0:
+                        lPrice = d['Latest Price']
+                    else:
+                        lsymbol = d.get('Symbol')
+                        #
+                        lpriceV = pValues.get(lsymbol)
+                        #
+                        if lpriceV != None:
+                            lPrice = lpriceV.get('quote')
+                        else:
+                            lPrice = 0.00
+
+                    ci.columnWrite(myRow,myColumn,lPrice,'currency',formats.currencyFormat(myRow))
+
+                elif ci.name == "Total Value":
+                    # let excel do the work:
+                    formula = "=" + str(totalSharesCol) + str(myRow + 1) + "*" + str(latestPriceCol) + str(myRow + 1)
+                    ci.columnWrite(myRow,myColumn,formula,'formula',formats.currencyFormat(myRow))
+
+                elif ci.name == 'Net':
+                    # =(L2-N2)+M2
+                    # TODO:  Look at why Net is not computing correctly in basedatacsv.py
+                    formula = "=(" + str(totalValueCol) + str(myRow + 1) + "-" + str(totalCostCol) + str(myRow + 1) + ") + " + str(dividendsRecCol) + str(myRow+1)
+                    ci.columnWrite(myRow,myColumn,formula,'formula',formats.currencyFormat(myRow))
+
+                elif ci.name == 'First Purchase':
+                    ci.columnWrite(myRow,myColumn, v,'date',formats.dateFormat(myRow))
+
                 else:
-                    worksheet.write(myRow,myColumn, v, formats.textFormat(myRow))
-
-            myColumn = myColumn + 1
-
-        myRow = myRow + 1
-
-    stockOrd = myColumn
-    #  This section writes out the stocks and funds that did not get a price
-    #  from the lookup.
-    #
-    for d in details:
-        myColumn = 0
-
-        if d['Latest Price'] != 0:
-            # print("Skipping",d['Name'])
-            continue
-
-        for l in myKeys:
-            v = d[l]
-            # myColumn = xlsxwriter.utility.xl_col_to_name(myColumn)
-            # currentA = myColumn + str(xRow)
-
-            if l == "Name":
-                s = d['Symbol']
-                ticker = symbols[s]
-                myUrl = ticker.worksheetURL()
-            else:
-                myUrl = None
-
-            if l == 'Total Value':
-                formula = "=" + str(totalSharesCol) + str(myRow+1) + "*" + str(latestPriceCol) + str(myRow+1)
-                # print(formula)
-                worksheet.write_formula(myRow,myColumn,formula, formats.currencyFormat(myRow))
-            elif l == 'Net':
-                formula = "=" + totalValueCol + str(myRow) + "-" + totalCostCol + str(myRow)
-                worksheet.write_formula(myRow,myColumn,formula, formats.currencyFormat(myRow))
-            elif l == 'Latest Price':
-                #
-                lsymbol = d.get('Symbol')
-                #
-                lpriceV = pValues.get(lsymbol)
-                #
-                if lpriceV != None:
-                    lprice = lpriceV.get('quote')
-                else:
-                    lprice = 0.00
-                worksheet.write_number(myRow,myColumn, float(lprice),formats.currencyFormat(myRow))
-            elif (l == 'Current Dividend' or l == 'Yearly Dividend' or l == 'Latest EPS' or l == 'Dividends Received' or l == 'Total Cost' or l == 'Average Price') and v != None:
-                worksheet.write_number(myRow, myColumn, float(v), formats.currencyFormat(myRow))
-            elif l == 'First Purchase':
-                worksheet.write(myRow, myColumn, v, formats.dateFormat(myRow))
-            else:
-                if myUrl != None:
-                    worksheet.write_url(myRow, myColumn, myUrl, formats.textFormat(myRow), v, None)
-                else:
-                    worksheet.write(myRow, myColumn, v, formats.textFormat(myRow))
-                #
+                    ci.columnWrite(myRow,myColumn, v,'text',formats.textFormat(myRow))
 
             myColumn = myColumn + 1
 
         myRow = myRow + 1
 
     #
-    #  If the last section didn't have any entries, myColumn will be 0
-    #  reset it to the last value of the previous section.
+    # Add the formulas
     #
-    if myColumn == 0:
-        myColumn = stockOrd
+    # Name Column
+    ci = common_xls_formats.ColumnInfo(worksheet,"Projected Dividends",myColumn,1,10,10)
+    ci.columnWrite(0,myColumn,"Projected Dividends",'text',formats.headerFormat(),True)
+    ColumnInfo.append(ci)
 
-    worksheet.write(0,myColumn,'Percentage Portfolio',formats.headerFormat())
-    worksheet.write(0,myColumn+1,'Dividend Yield',formats.headerFormat())
-    worksheet.write(0,myColumn+2,'ROI',formats.headerFormat())
-    worksheet.write(0,myColumn+3,'Annual Return',formats.headerFormat())
-    worksheet.write(0,myColumn+4,'CAGR', formats.headerFormat())
-    worksheet.write(0,myColumn+5,'Projected Dividends',formats.headerFormat())
+    ci = common_xls_formats.ColumnInfo(worksheet,"Dividend Yield",myColumn+1,1,10,10)
+    ci.columnWrite(0,myColumn+1,"Dividend Yield",'text',formats.headerFormat(),True)
+    ColumnInfo.append(ci)
+
+    ci = common_xls_formats.ColumnInfo(worksheet,"Percentage Portfolio",myColumn+2,1,10,10)
+    ci.columnWrite(0,myColumn+2,"Percentage Portfolio",'text',formats.headerFormat(),True)
+    ColumnInfo.append(ci)
+
+    ci = common_xls_formats.ColumnInfo(worksheet, "ROI", myColumn+3, 1, 10, 10)
+    ci.columnWrite(0, myColumn+3, "ROI", 'text', formats.headerFormat())
+    ColumnInfo.append(ci)
+
+    ci = common_xls_formats.ColumnInfo(worksheet, "Annual Return", myColumn+4, 1, 10, 10)
+    ci.columnWrite(0, myColumn+4, "Annual Retrun", 'text', formats.headerFormat(),True)
+    ColumnInfo.append(ci)
+
+    ci = common_xls_formats.ColumnInfo(worksheet, "CAGR", myColumn+5, 1, 10, 10)
+    ci.columnWrite(0, myColumn+5, "CAGR", 'text', formats.headerFormat(),True)
+    ColumnInfo.append(ci)
+
+    # worksheet.write(0,myColumn,'Percentage Portfolio',formats.headerFormat())
+    # worksheet.write(0,myColumn+1,'Dividend Yield',formats.headerFormat())
+    # worksheet.write(0,myColumn+2,'ROI',formats.headerFormat())
+    # worksheet.write(0,myColumn+3,'Annual Return',formats.headerFormat())
+    # worksheet.write(0,myColumn+4,'CAGR', formats.headerFormat())
+    # worksheet.write(0,myColumn+5,'Projected Dividends',formats.headerFormat())
+
+    # special format for the conditial format below
+    formatYellow = workbook.add_format({'bg_color': '#FFEB9C', 'font_color': '#9C6500'})
+
+    # get the specific columns
+    percPortCol = xlsxwriter.utility.xl_col_to_name(myColumn+2)
+    roiCol = xlsxwriter.utility.xl_col_to_name(myColumn+3)
+    aRetCol = xlsxwriter.utility.xl_col_to_name(myColumn+4)
+    cagrCol = xlsxwriter.utility.xl_col_to_name(myColumn+5)
+
+    worksheet.conditional_format(percPortCol+str(2)+':'+percPortCol+str(myRow), {'type': 'top',
+                                           'value': 10,
+                                           'criteria': '%',
+                                           'format': formatYellow})
+
+    worksheet.conditional_format(roiCol + str(2) + ':' + roiCol + str(myRow), {'type': 'data_bar',
+                                                                                 'bar_no_border': True,
+                                                                                 'bar_color': '#63C384',
+                                                                                 'bar_axis_color': '#0070C0'})
+
+    worksheet.conditional_format(aRetCol+str(2)+':'+aRetCol+str(myRow), {'type': 'data_bar',
+                                                                         'bar_no_border': True,
+                                                                         'bar_color': '#63C384',
+                                                                         'bar_axis_color': '#0070C0'})
+
+    worksheet.conditional_format(cagrCol+str(2)+':'+cagrCol+str(myRow), {'type': 'data_bar',
+                                                                         'bar_no_border': True,
+                                                                         'bar_color': '#63C384',
+                                                                         'bar_axis_color': '#0070C0'})
 
     # myColumn = stockOrd
     for i in range(2,myRow+1):
 
-        # Add formula for Percentage of the Portfolio
-        currentB =  totalValueCol + str(i)
-        formula = '=' + currentB + '/ (SUM($' + totalValueCol + "$2:$" + totalValueCol + "$" + str(myRow) + "))"
-        worksheet.write_formula(i-1,myColumn,formula,formats.percentFormat(i-1))
-
-        # Dividend Yield
-        # IF(Q2 > 0 , Q2/K2, 0 )
-        formula = "=IF(" + yearlyDividendCol + str(i) + "> 0 ," + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) + ",0)"
-        worksheet.write_formula(i-1,myColumn+1,formula,formats.percentFormat(i-1))
-
-        # ROI - Return on Investment
-        # IF ( Cost > 0 , totalvalue - total cost / total cost ) / 0
-        formula = "=if(" + totalCostCol + str(i) + ">0,(" + totalValueCol + str(i) + "-" + totalCostCol + str(i) + ") / " + totalCostCol + str(i) + ", 0)"
-        worksheet.write_formula(i-1,myColumn+2,formula,formats.percentFormat(i-1))
-
-        # Annual Return
-        # =if(n2>0,POWER((L2/N2),(365/U2))-1,0)
-        formula = "=if(" + totalCostCol + str(i) + ">0,power((" + totalValueCol + str(i) + "/" + totalCostCol + str(i) + "),(365 / " + daysOwnedCol + str(i) + "))-1, 0)"
-        worksheet.write_formula(i-1,myColumn+3,formula,formats.percentFormat(i-1))
-
-        # CAGR - Compound annual growth rate
-        # =IF(N37>0,POWER(((L37+M37)/N37),(365/U37))-1,0)
-        formula = "=if(" + totalCostCol + str(i) + ">0,power(((" + totalValueCol + str(i) + "+" + dividendsRecCol + str(i) + ")/" + totalCostCol + str(i) + "),(365 / " + daysOwnedCol + str(i) + "))-1,0)"
-        worksheet.write_formula(i-1,myColumn+4,formula,formats.percentFormat(i-1))
-        #
         # Projected Dividends
         # =IF(P17>0,Q17*J17,(M17/U17)*365)
         #  if Yearly Dividends > 0, then Yearly Dividend * Number of shares, else (Total Dividends / Number of Days owned) * 365
         formula = "=if(" + yearlyDividendCol + str(i) + "> 0," + yearlyDividendCol + str(i) + "*" + totalSharesCol + str(i) + ", (" + dividendsRecCol + str(i) + "/" + daysOwnedCol + str(i) + ") * 365)"
-        # print(formula)
-        worksheet.write_formula(i-1, myColumn+5, formula, formats.currencyFormat(i-1))
+        ci = ColumnInfo[myColumn]
+        ci.columnWrite(i-1,myColumn,formula,'formula',formats.currencyFormat(i-1))
 
-    # marker
+        # Dividend Yield
+        # IF(Q2 > 0 , Q2/K2, 0 )
+        formula = "=IF(" + yearlyDividendCol + str(i) + "> 0 ," + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) + ",0)"
+        ci = ColumnInfo[myColumn+1]
+        ci.columnWrite(i-1,myColumn+1,formula,'formula',formats.percentFormat(i-1))
+
+        # Add formula for Percentage of the Portfolio
+        formula = '=' + totalValueCol + str(i) + '/ (SUM($' + totalValueCol + "$2:$" + totalValueCol + "$" + str(myRow) + "))"
+        ci = ColumnInfo[myColumn+2]
+        ci.columnWrite(i-1,myColumn+2,formula,'formula',formats.percentFormat(i-1))
+
+        # ROI - Return on Investment
+        # IF ( Cost > 0 , totalvalue - total cost / total cost ) / 0
+        formula = "=if(" + totalCostCol + str(i) + ">0,(" + totalValueCol + str(i) + "-" + totalCostCol + str(i) + ") / " + totalCostCol + str(i) + ", 0)"
+        ci = ColumnInfo[myColumn+3]
+        ci.columnWrite(i-1,myColumn+3,formula,'formula',formats.percentFormat(i-1))
+
+        # Annual Return
+        # =if(n2>0,POWER((L2/N2),(365/U2))-1,0)
+        formula = "=if(" + totalCostCol + str(i) + ">0,power((" + totalValueCol + str(i) + "/" + totalCostCol + str(i) + "),(365 / " + daysOwnedCol + str(i) + "))-1, 0)"
+        ci = ColumnInfo[myColumn+4]
+        ci.columnWrite(i-1,myColumn+4,formula,'formula',formats.percentFormat(i-1))
+
+        # CAGR - Compound annual growth rate
+        # =IF(N37>0,POWER(((L37+M37)/N37),(365/U37))-1,0)
+        formula = "=if(" + totalCostCol + str(i) + ">0,power(((" + totalValueCol + str(i) + "+" + dividendsRecCol + str(i) + ")/" + totalCostCol + str(i) + "),(365 / " + daysOwnedCol + str(i) + "))-1,0)"
+        ci = ColumnInfo[myColumn+5]
+        ci.columnWrite(i-1,myColumn+5,formula,'formula',formats.percentFormat(i-1))
+
+
+    #
+    for ci in ColumnInfo:
+        print(ci)
+        ci.columnSetSize(1.4)
+
     print(myRow,",",myColumn)
 
     iexFormats = common_xls_formats.InitType(formats)
@@ -455,9 +511,7 @@ if __name__ == "__main__":
             myRow = 3
             myColumn = myColumn + 3
 
-
         # print("writing transactions for:",key," maxRow:",maxRow)
-
         T.writeTransactions(maxRow+1,0,worksheet,transaction.pickSymbol,key)
 
     # last things, write out the looks-ups.
