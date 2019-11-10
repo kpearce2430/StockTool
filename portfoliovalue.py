@@ -81,6 +81,7 @@ def LoadPortfolioValue(name, pvalue, lookups = None):
 #
 #
 def WritePortfolioValueWorksheet(pvalue, workbook, formats):
+
     if isinstance(pvalue,dict) == False:
         print("Invalid argument pvalue")
         return
@@ -91,38 +92,53 @@ def WritePortfolioValueWorksheet(pvalue, workbook, formats):
     # myKeys.sort()
     labels = PortfolioLabels()
     headers = PortfolioHeaders()
+    columnInfo = []
 
     myRow = 0
     myColumn = 0
     for h in headers:
-        worksheet.write(myRow,myColumn,h,formats.header_format)
+        ci = common_xls_formats.ColumnInfo(worksheet,h,myColumn)
+        ci.columnWrite(myRow,myColumn,h,'text',formats.headerFormat(),True)
+        columnInfo.append(ci)
         myColumn = myColumn + 1
 
-    myRow = 1
-    try:
-        for k in myKeys:
-            v = pvalue[k]
-            myColumn = 0
-            for l in labels:
-                if l == "quote" or l == "price_day_change" or l == "shares":
-                    try:
-                        worksheet.write_number(myRow, myColumn, float(v[l]),formats.numberFormat(myRow))
-                    except:
-                        worksheet.write(myRow, myColumn, v[l], formats.textFormat(myRow))
-                elif l == "cost_basis" or l == "market_value" or l == "gain_loss" or l == 'avg_cost_per_share'  or l == 'gain_loss_last_12m':
-                    try:
-                        worksheet.write_number(myRow, myColumn, float(v[l]), formats.currencyFormat(myRow) )
-                    except:
-                        worksheet.write(myRow, myColumn, v[l], formats.textFormat(myRow))
-                elif l == "price_day_change_pct" or l == "gain_loss_pct":
-                    worksheet.write_number(myRow, myColumn, float(v[l])/100, formats.percentFormat(myRow))
-                else:
-                    worksheet.write(myRow,myColumn,v[l],formats.textFormat(myRow))
+    # for myCol in range(0,len(columnInfo)):
+    #    ci = columnInfo[myCol]
+    #    print(myCol,":",str(ci))
 
-                myColumn = myColumn + 1
-            myRow = myRow + 1
-    except:
-        print("exception")
+    myRow = 1
+    for k in myKeys:
+        v = pvalue[k]
+        myColumn = 0
+        for l in labels:
+            ci = columnInfo[myColumn]
+
+            if l == "shares":
+                ci.columnWrite(myRow,myColumn,v[l],'number',formats.numberFormat(myRow))
+
+            elif l == "quote" or l == "price_day_change" or l == 'market_value' or l == 'gain_loss' or l == 'avg_cost_per_share' or l == 'gain_loss_last_12m' or l == 'cost_basis':
+                ci.columnWrite(myRow,myColumn,v[l],'currency',formats.currencyFormat(myRow))
+
+            elif l == "price_day_change_pct" or l == "gain_loss_pct":
+                # since I'm already reading in a percent, it needs to be converted back to a float
+                fValue = ci.convertFloat(v[l])
+                if fValue != None:
+                    fValue = fValue / 100;
+                    ci.columnWrite(myRow,myColumn,fValue,'percent',formats.percentFormat(myRow))
+                else:
+                    ci.columnWrite(myRow,myColumn,v[l],"text",formats.textFormat(myRow))
+
+            else:
+                ci.columnWrite(myRow,myColumn,v[l],'text',formats.textFormat(myRow))
+
+            myColumn = myColumn + 1
+
+        myRow = myRow + 1
+
+    for ci in columnInfo:
+        ci.columnSetSize(1.3)
+        # print(myCol,":",str(ci))
+        # worksheet.set_column(ci.columnNumber,ci.columnNumber,ci.columnSize(1.3))
 
 if __name__ == "__main__":
     pvalue = dict()
