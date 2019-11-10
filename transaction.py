@@ -47,6 +47,7 @@ class Transactions:
         self.transactions = []
         self.jsonTags = []
         self.headers = []
+        self.columns = {} # for ColumnInfo class
 
 
     def loadTransactions(self,infilename, lookups ):
@@ -149,58 +150,51 @@ class Transactions:
         print("Loaded ", len(self.transactions), " transactions")
 
     def writeTransactionWorksheetHeaders(self, worksheet, startRow = 0, startColumn = 0 ):
+        self.columns.clear()
         myCol = startColumn
         # headers = TransactionHeaders()
         for h in self.headers:
-            worksheet.write(startRow, myCol, h, self.formats.headerFormat())
+            ci = common_xls_formats.ColumnInfo(worksheet,h,myCol)
+            self.columns[myCol] = ci
+            ci.columnWrite(startRow,myCol,h,'text',self.formats.headerFormat(),True)
             myCol = myCol + 1
 
     def writeTransactionWorksheetRow(self, worksheet, trans, startRow = 0, startColumn = 0):
 
         myCol = startColumn
+        dateCol = xlsxwriter.utility.xl_col_to_name(myCol)
 
         for i in range(len(self.headers)):
 
             myTag = self.jsonTags[i]
             value = trans.get_value(myTag)
+            ci = self.columns[myCol]
 
             if myTag == 'date':
-                worksheet.write(startRow, myCol, value, self.formats.dateFormat(startRow))
+                ci.columnWrite(startRow,myCol,value,'date',self.formats.dateFormat(startRow))
 
             elif myTag == 'shares':
-                try:
-                    worksheet.write_number(startRow, myCol, float(value),self.formats.numberFormat(startRow))
-                except:
-                    worksheet.write_number(startRow, myCol, 0.00,self.formats.numberFormat(startRow))
+                ci.columnWrite(startRow,myCol,value,'number',self.formats.numberFormat(startRow))
 
             elif myTag == 'amount':
-
                 if trans.get_value("type") == "Reinvest Dividend":
                     value = trans.get_value("invest_amt")
-
-                try:
-                    worksheet.write_number(startRow, myCol, float(value),self.formats.currencyFormat(startRow))
-                except:
-                    print(myTag, "Not a number(", str(value), ")")
+                ci.columnWrite(startRow,myCol,value,'currency',self.formats.currencyFormat(startRow))
 
             elif myTag == 'invest_amt':
                 value = trans.get_value("invest_amt")
-                try:
-                    worksheet.write_number(startRow, myCol, float(value),self.formats.currencyFormat(startRow))
-                except:
-                    worksheet.write_number(startRow, myCol, 0.00,self.formats.currencyFormat(startRow))
-                    # print(myTag, "Not a number(", str(value), ")")
+                ci.columnWrite(startRow,myCol,value,'currency',self.formats.currencyFormat(startRow))
 
             elif myTag == 'year':
-                formula = "=YEAR(" + "A" + str(startRow + 1) + ")"
-                worksheet.write_formula(startRow, myCol, formula, self.formats.formulaFormat(startRow))
+                formula = "=YEAR(" + dateCol + str(startRow + 1) + ")"
+                ci.columnWrite(startRow,myCol,formula,'formula',self.formats.formulaFormat(startRow))
 
             elif myTag == 'month':
-                formula = "=MONTH(" + "A" + str(startRow + 1) + ")"
-                worksheet.write_formula(startRow, myCol, formula, self.formats.formulaFormat(startRow))
+                formula = "=MONTH(" + dateCol + str(startRow + 1) + ")"
+                ci.columnWrite(startRow,myCol,formula,'formula',self.formats.formulaFormat(startRow))
 
             else:
-                worksheet.write(startRow, myCol, value, self.formats.textFormat(startRow))
+                ci.columnWrite(startRow,myCol,value,'date',self.formats.textFormat(startRow))
 
             myCol = myCol + 1
 
@@ -227,6 +221,12 @@ class Transactions:
             else:
                 self.writeTransactionWorksheetRow(myWorksheet, t, row, startColumn)
                 row = row + 1
+
+        for myCol in self.columns:
+            ci = self.columns[myCol]
+            ci.columnSetSize(1.3)
+            # print("column:",myCol,",",str(ci))
+            # myWorksheet.set_column(ci.columnNumber, ci.columnNumber, ci.columnSize(1.3))
 
 def TransactionJsonTags():
     return ["date", "type", "security","symbol","security_payee","description","shares","invest_amt","amount","account","year","month"]
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     T.writeTransactions(0,0)
 
     myWorksheet = workbook.add_worksheet('APPLE')
-    T.writeTransactions(0,0,myWorksheet,pickSymbol,"AAPL")
+    T.writeTransactions(2,2,myWorksheet,pickSymbol,"AAPL")
 
     workbook.close()
 
