@@ -82,6 +82,108 @@ def printData( labelData, ticker, formats, row = 0, col = 0 ):
 
     return myRow
 
+
+def printEntries( worksheet, entries, formats, startRow=0, startColumn=0 ):
+
+    entryColumnInfo = bdata.CreateEntryTypes()
+    myColumn = startColumn
+    myRow = startRow
+
+    for ec in entryColumnInfo:
+        ec.ColumnInfo = common_xls_formats.ColumnInfo(worksheet,ec.Header,myColumn,1,1)
+        ec.ColumnInfo.columnWrite(myRow,myColumn,ec.Header,'text',formats.headerFormat(),True)
+        myColumn = myColumn + 1
+
+    myRow = myRow+1
+    for e in entries:
+        myColumn = startColumn
+        for ec in entryColumnInfo:
+            ci = ec.ColumnInfo
+            tag = ec.Tag
+            value = e.get(tag)
+            if ec.Header == 'Sold Lots':
+                value = len(value) # should be a list of the lots
+
+            if ec.Type == 'currency':
+                ci.columnWrite(myRow, myColumn, value, ec.Type, formats.currencyFormat(myRow))
+            elif ec.Type == 'numeric':
+                ci.columnWrite(myRow, myColumn, value, ec.Type, formats.numberFormat(myRow))
+            elif ec.Type == 'date':
+                ci.columnWrite(myRow, myColumn, value, ec.Type, formats.dateFormat(myRow))
+            else:
+                ci.columnWrite(myRow,myColumn,value,ec.Type,formats.textFormat(myRow))
+
+            myColumn = myColumn + 1
+        myRow = myRow + 1
+
+    #
+    for ec in entryColumnInfo:
+        ec.ColumnInfo.columnSetSize(1.4)
+
+#  iexDataSheet - create a worksheet based the data returned from IEX API.
+#    worksheet -
+#    iexData - an list of tags, labels, types, and formats for the data
+#    data_type - the data type from the ticker such as 'quote_data' or 'stats_data'.
+#    symbols - The list of tickers built by basedatacsv.py
+#    formats - The formats only used by the headers.
+def iexDataSheet(worksheet,iexData,data_type,symbols,formats):
+
+    qdColumnInfo = []
+    myColumn = 0
+    for qd in iexData:
+        ci = common_xls_formats.ColumnInfo(worksheet,qd.label,myColumn,1,1,40)
+        ci.columnWrite(0,myColumn,qd.label,'text',formats.headerFormat(),True)
+        qdColumnInfo.append(ci)
+        myColumn = myColumn+1
+
+    myRow = 1
+    for key, value in sorted(symbols.items()):
+        t = symbols[key]
+
+        if t.numShares() <= 0:
+            continue
+
+        myColumn = 0
+        dataSet = t.get_data(data_type)
+        # print("qdata:",dataSet)
+        if dataSet == None:
+            continue;
+
+        for qd in iexData:
+            myTag = qd.tag
+            # print("tag:",myTag)
+            dataElement = dataSet.get(myTag)
+            ci = qdColumnInfo[myColumn]
+
+            if dataElement != None and (qd.type == 'currency' or qd.type == 'percentage' or qd.type == 'number'):
+                try:
+                    fValue = float(dataElement)
+                    ci.columnWrite(myRow,myColumn,fValue,qd.type,qd.format(myRow))
+                except:
+                    ci.columnWrite(myRow,myColumn,dataElement,qd.type,qd.format(myRow))
+
+            elif dataElement != None and qd.type == 'timestamp':
+                tsInt = int(dataElement)
+                if tsInt > 0:
+                    tsDt = datetime.datetime.fromtimestamp(tsInt / 1000.0)
+                    # print(ci.name,":",tsDt)
+                    ci.columnWrite(myRow,myColumn,tsDt,'timestamp',qd.format(myRow))
+                else:
+                    print("Field ", qd.tag, " has no timestime value:", dataElement)
+                    ci.columnWrite(myRow,myColumn,dataElement,'text',qd.format(myRow))
+            else:
+                ci.columnWrite(myRow, myColumn, dataElement, qd.type, qd.format(myRow))
+
+            myColumn = myColumn+1
+
+        myRow = myRow+1
+
+    #
+    for ci in qdColumnInfo:
+        # print(ci)
+        ci.columnSetSize(1.4)
+
+
 if __name__ == "__main__":
 
     #
@@ -142,8 +244,11 @@ if __name__ == "__main__":
     for row in translist:
         # add row to the master list
         #
-        # if row.get_value("symbol") != "HD":
+        #if row.get_value("symbol") != "HD":
         #   continue
+        #
+        #if row.get_value("account") != "HD ESPP":
+        #    continue
 
         amt = row.get_value("amount")
         if row.get_value("type") == 'Reinvest Dividend':
@@ -183,7 +288,7 @@ if __name__ == "__main__":
 
     myColumn = 2
     # Add in the individual accounts next
-    # print(len(unique_accounts))
+    #
     for acct in unique_accounts:
         # myColumn = xlsxwriter.utility.xl_col_to_name(myColumn) + "1"
         # print("myColumn:",myColumn)
@@ -204,14 +309,14 @@ if __name__ == "__main__":
 
     # go through ALL the details and pick up the remaining labels.
     for d in details:
-        # print("d:",d)
+        #  for each detail
         for k in d:
-            # print("k:",k)
-
+            # for each key in the detail
             dup = False
+            # TODO: Update for a better way of making sure there are no duplicates.
             for ci in ColumnInfo:
                 if ci.name == k:
-                    print("Skipping ",k," duplicate")
+                    # print("Skipping ",k," duplicate")
                     dup = True
                     break; # for ci
 
@@ -241,10 +346,6 @@ if __name__ == "__main__":
     myRow = 1
     for d in details:
         myColumn = 0
-
-        # if d['Latest Price'] == 0:
-        #    print("Skipping ",d["Name"])
-        #    continue
 
         for ci in ColumnInfo:
         # for l in myKeys:
@@ -277,6 +378,8 @@ if __name__ == "__main__":
                     ci.columnWrite(myRow,myColumn,v,'currency',formats.currencyFormat(myRow))
 
                 elif ci.name == 'Latest Price':
+                    #
+                    # for mutual funds and international stocks, use the value that is in the portfolio.
                     if d['Latest Price'] != 0:
                         lPrice = d['Latest Price']
                     else:
@@ -340,14 +443,8 @@ if __name__ == "__main__":
     ci.columnWrite(0, myColumn+5, "CAGR", 'text', formats.headerFormat(),True)
     ColumnInfo.append(ci)
 
-    # worksheet.write(0,myColumn,'Percentage Portfolio',formats.headerFormat())
-    # worksheet.write(0,myColumn+1,'Dividend Yield',formats.headerFormat())
-    # worksheet.write(0,myColumn+2,'ROI',formats.headerFormat())
-    # worksheet.write(0,myColumn+3,'Annual Return',formats.headerFormat())
-    # worksheet.write(0,myColumn+4,'CAGR', formats.headerFormat())
-    # worksheet.write(0,myColumn+5,'Projected Dividends',formats.headerFormat())
-
     # special format for the conditial format below
+    # TODO: Add these to the common formats
     formatYellow = workbook.add_format({'bg_color': '#FFEB9C', 'font_color': '#9C6500'})
 
     # get the specific columns
@@ -418,22 +515,42 @@ if __name__ == "__main__":
 
     #
     for ci in ColumnInfo:
-        print(ci)
+        # print(ci)
         ci.columnSetSize(1.4)
 
+    # Check point...
     print(myRow,",",myColumn)
 
+    # Load in the Labels for the different tags for the IEX data.
     iexFormats = common_xls_formats.InitType(formats)
     iexQuoteData = common_xls_formats.loadDataLabels("quote_data_labels.csv", iexFormats)
     iexStatsData = common_xls_formats.loadDataLabels("stats_data_labels.csv", iexFormats)
     iexDividendData = common_xls_formats.loadDataLabels("dividend_data_labels.csv",iexFormats)
     iexNewsData = common_xls_formats.loadDataLabels("news_data_labels.csv",iexFormats)
+    iexEntryData = common_xls_formats.loadDataLabels("entry_data_labels.csv",iexFormats)
 
-    maxRow = myRow
+    # create a consolidated worksheet of quote data
+    worksheet = workbook.add_worksheet('Quote Data')
+    iexDataSheet(worksheet, iexQuoteData, 'quote_data', symbols, formats)
+
+    worksheet = workbook.add_worksheet('Stats Data')
+    iexDataSheet(worksheet,iexStatsData,'stats_data', symbols, formats)
+
+    # add the individual stock sheets
+
+    maxRow = myRow = 1
     for key, value in sorted(symbols.items()):
 
         t = symbols[key]
 
+        # print(t,":",str(t))
+        #for e in t.entryValues():
+        #    print("Entry:",e)
+        #    lots = e.get('SoldLots')
+        #    print("Lots:",lots)
+        #    if isinstance(lots,list):
+        #        for l in lots:
+        #            print("lot:",l)
         if t.numShares() <= 0:
             continue
 
@@ -442,15 +559,19 @@ if __name__ == "__main__":
         if len(worksheetName) > 30 :
             worksheetName = worksheetName[:30]
 
+
         worksheet = workbook.add_worksheet(worksheetName)
         myUrl = "internal: 'Stock Analysis'!A1"
         worksheet.write_url(0,0,myUrl,None,"Back To Stock Analysis", None)
 
+        entries = t.entryValues()
+        printEntries(worksheet, entries, formats, 0, 1 )
+
+        """
         myRow =3
         myColumn = 0
         maxRow = myRow
-
-        for data_type in ['quote_data','stats_data','dividend_data','news_data']:
+        for data_type in ['dividend_data','news_data']:
 
             qdata = t.get_data(data_type)
             if qdata == None:
@@ -511,8 +632,9 @@ if __name__ == "__main__":
             myRow = 3
             myColumn = myColumn + 3
 
+"""
         # print("writing transactions for:",key," maxRow:",maxRow)
-        T.writeTransactions(maxRow+1,0,worksheet,transaction.pickSymbol,key)
+        # T.writeTransactions(0,myColumn+1,worksheet,transaction.pickSymbol,key)
 
     # last things, write out the looks-ups.
     WriteLookupWorkSheet(lookUps,workbook,formats)
