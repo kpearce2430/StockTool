@@ -13,7 +13,7 @@ import csv
 import json
 import xlsxwriter
 import basedatacsv as bdata
-import portfoliovalue as pvalue
+import portfoliovalue as pv
 import transaction
 import urllib3
 import datetime
@@ -220,9 +220,8 @@ if __name__ == "__main__":
     #
     # Load the Portfolio Value CSV file.  This provides the last price when it's not available
     # through iexdata.
-    pValues = dict()
-    pvalue.LoadPortfolioValue(portfolioFilename,pValues, lookUps)
-    pvalue.WritePortfolioValueWorksheet(pValues,workbook,formats)
+    pValues = pv.PortfolioValue(portfolioFilename,lookUps)
+    pValues.WriteValues(workbook,formats)
 
     #
     # read in the transactions and write them to their own worksheet for any ad-hoc analysis.
@@ -385,12 +384,11 @@ if __name__ == "__main__":
                     else:
                         lsymbol = d.get('Symbol')
                         #
-                        lpriceV = pValues.get(lsymbol)
+                        lPrice = pValues.GetValue(lsymbol,'quote')
                         #
-                        if lpriceV != None:
-                            lPrice = lpriceV.get('quote')
-                        else:
+                        if lPrice == None:
                             lPrice = 0.00
+                        # print("Latest Price:",lPrice)
 
                     ci.columnWrite(myRow,myColumn,lPrice,'currency',formats.currencyFormat(myRow))
 
@@ -566,75 +564,6 @@ if __name__ == "__main__":
 
         entries = t.entryValues()
         printEntries(worksheet, entries, formats, 0, 1 )
-
-        """
-        myRow =3
-        myColumn = 0
-        maxRow = myRow
-        for data_type in ['dividend_data','news_data']:
-
-            qdata = t.get_data(data_type)
-            if qdata == None:
-                continue
-            # print(qdata)
-            if data_type == 'quote_data':
-                worksheet.write(myRow, myColumn, "Quote Data", formats.headerFormat())
-                worksheet.write(myRow, myColumn + 1, "", formats.headerFormat())
-                myRow = printData(iexQuoteData,qdata,formats,myRow+1,myColumn)
-
-            elif data_type == 'stats_data':
-                worksheet.write(myRow, myColumn, "Stats Data", formats.headerFormat())
-                worksheet.write(myRow, myColumn + 1, "", formats.headerFormat())
-                myRow = printData(iexStatsData,qdata,formats,myRow+1,myColumn)
-
-            elif data_type == 'dividend_data':
-                count = 1
-                for div in qdata:
-                    worksheet.write(myRow, myColumn, "Dividend Data", formats.headerFormat())
-                    worksheet.write(myRow, myColumn + 1, str(count), formats.headerFormat())
-                    myRow = printData(iexDividendData,div,formats,myRow+1,myColumn)
-                    count = count+1
-
-            elif data_type == 'news_data':
-                count = 1
-                for div in qdata:
-                    worksheet.write(myRow, myColumn, "News Data", formats.headerFormat())
-                    worksheet.write(myRow, myColumn + 1, str(count), formats.headerFormat())
-                    myRow = printData(iexNewsData,div,formats,myRow+1,myColumn)
-                    count = count+1
-
-            elif isinstance(qdata,dict):
-                for item in qdata:
-                    # print(key,":",qdata[item])
-                    worksheet.write(myRow,myColumn,item,formats.textFormat(myRow))
-                    worksheet.write(myRow,myColumn+1,qdata[item],formats.textFormat(myRow))
-                    myRow = myRow + 1
-
-            else:
-                if isinstance(qdata,list) and (data_type == 'dividend_data' or data_type == 'news_data'):
-                    count = 1
-                    for div in qdata:
-                        worksheet.write(myRow,myColumn,data_type ,formats.headerFormat())
-                        worksheet.write(myRow,myColumn + 1,str(count),formats.headerFormat())
-                        myRow = myRow+1
-                        for  datam in div:
-                            # print(key,":",qdata[item])
-                            worksheet.write(myRow, myColumn, datam, formats.textFormat(myRow))
-                            worksheet.write(myRow, myColumn + 1, div[datam], formats.textFormat(myRow))
-                            myRow = myRow + 1
-                        count = count + 1
-                else:
-                    print(key,":",data_type,":",qdata)
-
-            if myRow > maxRow:
-                maxRow = myRow
-
-            myRow = 3
-            myColumn = myColumn + 3
-
-"""
-        # print("writing transactions for:",key," maxRow:",maxRow)
-        # T.writeTransactions(0,myColumn+1,worksheet,transaction.pickSymbol,key)
 
     # last things, write out the looks-ups.
     WriteLookupWorkSheet(lookUps,workbook,formats)
