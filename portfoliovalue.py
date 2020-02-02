@@ -11,6 +11,7 @@ class PortfolioValue:
     lookups = None
     filename = None
     currentHeaders = []
+    #  These are the headers from Quicken with the labels (or tags) that I've assigned them.
     knownFields = {
         "Name": "name",
         "Symbol": "symbol",
@@ -26,12 +27,6 @@ class PortfolioValue:
         "Gain/Loss": "gain_loss",
         "Gain/Loss (%)": "gain_loss_pct"
     }
-
-    # these are the known headers from quicken:
-    # knownheaders = [ "Name","Symbol","Type","Quote","Price Day Change","Price Day Change (%)","Shares","Cost Basis","Market Value","Average Cost Per Share","Gain/Loss 12-Month","Gain/Loss","Gain/Loss (%)" ]
-    # these are their label
-    # knownlabels = ["name","symbol","type","quote","price_day_change","price_day_change_pct","shares","cost_basis","market_value","avg_cost_per_share","gain_loss_last_12m","gain_loss","gain_loss_pct"]
-
 
     def __init__ (self, filename = None, lookups = None, loadIt = True ):
         #
@@ -170,8 +165,6 @@ class PortfolioValue:
                 # print(mySymbol,":",myValues)
                 self.data[mySymbol] = myValues
 
-        # print("Loaded ",i, " rows")
-        # print(str(self.data))
 
     #
     def WriteValues (self,  workbook, formats):
