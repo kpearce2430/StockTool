@@ -612,7 +612,7 @@ class Ticker:
             return None
 
         # no attribute found, let's get the data.
-        elif len(self.symbol) < 5 and len(self.symbol) >=3 :
+        elif len(self.symbol) < 5 :
             #
             # not a symbol we can get a quote on.
             # url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/batch?types=quote,stats,earnings,news,chart,dividends,close&range=1y&last=3'
@@ -620,6 +620,7 @@ class Ticker:
             #  TODO: need to build cache for each item below to save transaction costs.
             #
             url = 'https://cloud.iexapis.com/v1/stock/' + self.symbol.lower() + '/batch?types=quote,stats,news,dividends&range=1y&last=3&token=' + self.token # '
+            # print("curl ", url )
             #
             #
             # url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/quote'
