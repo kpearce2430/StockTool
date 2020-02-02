@@ -338,6 +338,8 @@ if __name__ == "__main__":
                 daysOwnedCol = xlsxwriter.utility.xl_col_to_name(myColumn)
             elif k == 'Dividends Received':
                 dividendsRecCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            elif k == 'Current Dividend':
+                currentDividendCol = xlsxwriter.utility.xl_col_to_name(myColumn)
 
             myColumn = myColumn + 1
 
@@ -419,6 +421,7 @@ if __name__ == "__main__":
     # Name Column
     ci = common_xls_formats.ColumnInfo(worksheet,"Projected Dividends",myColumn,1,10,10)
     ci.columnWrite(0,myColumn,"Projected Dividends",'text',formats.headerFormat(),True)
+    projectedDividendsCol = xlsxwriter.utility.xl_col_to_name(myColumn)
     ColumnInfo.append(ci)
 
     ci = common_xls_formats.ColumnInfo(worksheet,"Dividend Yield",myColumn+1,1,10,10)
@@ -482,9 +485,26 @@ if __name__ == "__main__":
         ci.columnWrite(i-1,myColumn,formula,'formula',formats.currencyFormat(i-1))
 
         # Dividend Yield
-        # IF(Q2 > 0 , Q2/K2, 0 )
-        formula = "=IF(" + yearlyDividendCol + str(i) + "> 0 ," + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) + ",0)"
-        ci = ColumnInfo[myColumn+1]
+        #  Old Calculation: IF(Q2 > 0 , Q2/K2, 0 )
+        #  formula = "=IF(" + yearlyDividendCol + str(i) + "> 0 ," + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) + ",0)"
+        #  TODO - Calculate based on dividends recieved in last 12 months.
+        # Updated to calculate the yield based on dividends recieved since the mutual funds do not report on dividends.  This
+        # is just an approximation for comparison.
+        #   Q - Yearly Dividend (yearlyDividendCol)
+        #   K - Latest Price (latestPriceCol)
+        #   M - Dividends Recieved (dividendsRecCol)
+        #   P - Current Dividend (currentDividendCol)
+        #   V - Projected Dividends (projectedDividendsCol)
+        #   J - Total Shares (totalSharesCol)
+        #   K - Latest Price (latestPriceCol)
+        # =IF(Q43 > 0, Q43 / K43, IF(M43 > 0, IF(P43=0, (V43 / J43) / K43, 0), 0))
+        formula = "=if(" + yearlyDividendCol + str(i) + "> 0 ," \
+                + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) \
+                + ", if( " + dividendsRecCol + str(i) + " > 0 , if(" + currentDividendCol +str(i) + " = 0, (" \
+                + projectedDividendsCol + str(i) + "/" + totalSharesCol + str(i) + ") / " + latestPriceCol + str(i) + ",0),0))"
+
+        print(formula)
+
         ci.columnWrite(i-1,myColumn+1,formula,'formula',formats.percentFormat(i-1))
 
         # Add formula for Percentage of the Portfolio
