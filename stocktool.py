@@ -484,9 +484,8 @@ if __name__ == "__main__":
         ci = ColumnInfo[myColumn]
         ci.columnWrite(i-1,myColumn,formula,'formula',formats.currencyFormat(i-1))
 
-        # Dividend Yield
-        #  Old Calculation: IF(Q2 > 0 , Q2/K2, 0 )
-        #  formula = "=IF(" + yearlyDividendCol + str(i) + "> 0 ," + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) + ",0)"
+        #
+        # Dividend Yield:
         #  TODO - Calculate based on dividends recieved in last 12 months.
         # Updated to calculate the yield based on dividends recieved since the mutual funds do not report on dividends.  This
         # is just an approximation for comparison.
@@ -498,12 +497,19 @@ if __name__ == "__main__":
         #   J - Total Shares (totalSharesCol)
         #   K - Latest Price (latestPriceCol)
         # =IF(Q43 > 0, Q43 / K43, IF(M43 > 0, IF(P43=0, (V43 / J43) / K43, 0), 0))
+        #  The log is:
+        #  If there is a yearly dividend, then divide it by the share price to get the yield
+        #  Else:
+        #    if there have been dividends and there is no current dividend listed (such as in mutual funds),
+        #        then divide the projected divideds by the total shares to get an idea of the dividend per share
+        #         and divided it againsts the current share price
+        #
+        #
         formula = "=if(" + yearlyDividendCol + str(i) + "> 0 ," \
                 + yearlyDividendCol + str(i) + "/" + latestPriceCol + str(i) \
                 + ", if( " + dividendsRecCol + str(i) + " > 0 , if(" + currentDividendCol +str(i) + " = 0, (" \
                 + projectedDividendsCol + str(i) + "/" + totalSharesCol + str(i) + ") / " + latestPriceCol + str(i) + ",0),0))"
 
-        print(formula)
 
         ci.columnWrite(i-1,myColumn+1,formula,'formula',formats.percentFormat(i-1))
 
