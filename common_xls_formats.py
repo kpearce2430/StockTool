@@ -20,7 +20,7 @@ class XLSFormats:
         self.workbook = workbook
 
         # self.colors = ['#FFFFFF','#EEEEEE','#DDDDDD','#CCCCCC','#BBBBBB','#AAAAAA']
-        self.colors = ['#D9E2F3', '#FFFFFF']  #
+        self.colors = ["#D9E2F3", "#FFFFFF"]  #
 
         if num > len(self.colors):
             self.numberShades = len(self.colors)
@@ -42,9 +42,9 @@ class XLSFormats:
             self.header_format.set_font_size(14)
             self.header_format.set_bold()
             #
-            self.header_format.set_bg_color('#4674C1')
-            self.header_format.set_align('center')
-            self.header_format.set_align('vcenter')
+            self.header_format.set_bg_color("#4674C1")
+            self.header_format.set_align("center")
+            self.header_format.set_align("vcenter")
             self.header_format.set_text_wrap()
 
             for i in range(self.numberShades):
@@ -56,7 +56,7 @@ class XLSFormats:
 
                 date_format = workbook.add_format()
                 date_format.set_font_size(14)
-                date_format.set_num_format('mm/dd/yyyy')
+                date_format.set_num_format("mm/dd/yyyy")
                 date_format.set_bg_color(self.colors[i])
                 self.dates.append(date_format)
 
@@ -71,14 +71,14 @@ class XLSFormats:
                 number_format.set_bg_color(self.colors[i])
                 self.numbers.append(number_format)
 
-                percent_fmt = workbook.add_format({'num_format': '0.00%'})
+                percent_fmt = workbook.add_format({"num_format": "0.00%"})
                 percent_fmt.set_font_size(14)
                 percent_fmt.set_bg_color(self.colors[i])
                 self.percents.append(percent_fmt)
 
                 timestamp_format = workbook.add_format()
                 timestamp_format.set_font_size(14)
-                timestamp_format.set_num_format('mm/dd/yyyy hh:mm:ss')
+                timestamp_format.set_num_format("mm/dd/yyyy hh:mm:ss")
                 timestamp_format.set_bg_color(self.colors[i])
                 self.timestamps.append(timestamp_format)
 
@@ -148,12 +148,15 @@ class IEXDataSet:
     def __init__(self, name):
         self.name = name
 
+
 #
 # TODO:  A class for a set of ColumnInfo class
 #
 #  This stores the information about a column
 class ColumnInfo:
-    def __init__(self, Worksheet, Name=None, Colnum=0, Height=1, InitSize=1, Maxsize=40):  # , doSplit = False):
+    def __init__(
+        self, Worksheet, Name=None, Colnum=0, Height=1, InitSize=1, Maxsize=40
+    ):  # , doSplit = False):
         self.worksheet = Worksheet
         self.name = Name
         self.height = Height
@@ -178,13 +181,15 @@ class ColumnInfo:
         else:
             blob["Worksheet"] = str(None)
 
-        return blob;
+        return blob
 
     def columnSize(self, factor=1.1):
         return self.size * factor
 
     def columnSetSize(self, factor=1.1):
-        self.worksheet.set_column(self.columnNumber, self.columnNumber, self.columnSize(factor))
+        self.worksheet.set_column(
+            self.columnNumber, self.columnNumber, self.columnSize(factor)
+        )
 
     def convertFloat(self, Value):
         if isinstance(Value, float) == False:
@@ -193,7 +198,9 @@ class ColumnInfo:
                 return fValue
             except:
                 # write nothing
-                print(self.name, " something is there, but its not a float[", Value, "]")
+                print(
+                    self.name, " something is there, but its not a float[", Value, "]"
+                )
                 # Worksheet.write(Row, Column, Value, Format)
                 return None
         else:
@@ -204,7 +211,9 @@ class ColumnInfo:
     #                 worksheet.write(myRow, myCol, str(value), formats.textFormat(myRow))
     #                 ci.columnComputeSize(str(value), 'text')
     # TODO:  The size of the formula column is based on the size of the formula, not the result.  Need to base on size of result.
-    def columnWrite(self, Row, Column, Value, Type=None, Format=None, Split=False, TheURL = None):
+    def columnWrite(
+        self, Row, Column, Value, Type=None, Format=None, Split=False, TheURL=None
+    ):
 
         if hasattr(self, "worksheet") == False:
             print("Error: No worksheet found")
@@ -219,7 +228,7 @@ class ColumnInfo:
             self.worksheet.write(Row, Column, "", Format)
             return
 
-        if Type == 'currency' or Type == 'percent' or Type == 'number':
+        if Type == "currency" or Type == "percent" or Type == "number":
             fValue = self.convertFloat(Value)
             if fValue == None:
                 # print("something is there, but its not a float")
@@ -236,9 +245,9 @@ class ColumnInfo:
         #    print(Type)
         # elif Type == 'timestamp':
         #    print(Type)
-        elif Type == 'url':
+        elif Type == "url":
             #
-            self.worksheet.write_url(Row,Column,TheURL,Format,Value,None)
+            self.worksheet.write_url(Row, Column, TheURL, Format, Value, None)
         else:
             # print("default type[",Type,"]")
             self.worksheet.write(Row, Column, Value, Format)
@@ -251,14 +260,14 @@ class ColumnInfo:
             return
 
         mySize = 1
-        if type == 'currency' and isinstance(field, float):
+        if type == "currency" and isinstance(field, float):
             # print(self.name,":",type)
             mySize = self.columnCurrencySize(field, 2, True)
-        elif type == 'percent' and isinstance(field, float):
+        elif type == "percent" and isinstance(field, float):
             mySize = self.columnPercentSize(field, 2, False)
-        elif type == 'number' and isinstance(field, float):
+        elif type == "number" and isinstance(field, float):
             mySize = self.columnFloatSize(field)
-        elif type == 'int' and isinstance(field, int):
+        elif type == "int" and isinstance(field, int):
             mySize = self.columnStringSize(field, doSplit)
         else:
             mySize = self.columnStringSize(field, doSplit)
@@ -268,7 +277,6 @@ class ColumnInfo:
 
         elif mySize > self.size:
             self.size = mySize
-
 
     def columnFloatSize(self, f=0.00, decimalPlaces=2):
 
@@ -336,7 +344,7 @@ class ColumnInfo:
             # print(p, "is a string")
             if doSplit:
 
-                words = re.split('[ /]', p)
+                words = re.split("[ /]", p)
                 # print(self.name," words:",words)
                 if len(words) > self.height:
                     self.height = len(words)
@@ -355,23 +363,32 @@ class ColumnInfo:
 def InitType(formats):
     typeFormats = {}
 
-    for name in ['currency', 'date', 'formula', 'number', 'percent', 'timestamp', 'text', 'url']:
+    for name in [
+        "currency",
+        "date",
+        "formula",
+        "number",
+        "percent",
+        "timestamp",
+        "text",
+        "url",
+    ]:
         # print (name)
-        if name == 'currency' and hasattr(formats, 'currencyFormat'):
+        if name == "currency" and hasattr(formats, "currencyFormat"):
             typeFormats[name] = formats.currencyFormat
-        elif name == 'date' and hasattr(formats, 'dateFormat'):
+        elif name == "date" and hasattr(formats, "dateFormat"):
             typeFormats[name] = formats.dateFormat
-        elif name == 'formula' and hasattr(formats, 'formulaFormat'):
+        elif name == "formula" and hasattr(formats, "formulaFormat"):
             typeFormats[name] = formats.formulaFormat
-        elif name == 'number' and hasattr(formats, 'numberFormat'):
+        elif name == "number" and hasattr(formats, "numberFormat"):
             typeFormats[name] = formats.numberFormat
-        elif name == 'percent' and hasattr(formats, 'percentFormat'):
+        elif name == "percent" and hasattr(formats, "percentFormat"):
             typeFormats[name] = formats.percentFormat
-        elif name == 'text' and hasattr(formats, 'textFormat'):
+        elif name == "text" and hasattr(formats, "textFormat"):
             typeFormats[name] = formats.textFormat
-        elif name == 'timestamp' and hasattr(formats, 'timestampFormat'):
+        elif name == "timestamp" and hasattr(formats, "timestampFormat"):
             typeFormats[name] = formats.timestampFormat
-        elif name == 'url' and hasattr(formats, 'textFormat'):
+        elif name == "url" and hasattr(formats, "textFormat"):
             typeFormats[name] = formats.textFormat
         else:
             print("What the what? -->", name)
@@ -383,7 +400,7 @@ def InitType(formats):
 # this loads the data to fill in the IEXFields
 def loadDataLabels(filename, formats):
     dataSet = []
-    lookupReader = csv.reader(open(filename, newline=''), delimiter=',', quotechar='"')
+    lookupReader = csv.reader(open(filename, newline=""), delimiter=",", quotechar='"')
 
     i = 0
     for row in lookupReader:
@@ -446,7 +463,7 @@ if __name__ == "__main__":
     for h in hdrs:
         ci = ColumnInfo(worksheet, h, myCol)
         colInfo.append(ci)
-        ci.columnWrite(0, myCol, h, 'text', formats.headerFormat())
+        ci.columnWrite(0, myCol, h, "text", formats.headerFormat())
         myCol = myCol + 1
 
     myRow = 1
@@ -459,23 +476,31 @@ if __name__ == "__main__":
             value = t.get_value(tag)
 
             ci = colInfo[myCol]
-            if tag == 'year':
+            if tag == "year":
                 formula = "=YEAR(A" + str(myRow + 1) + ")"
-                ci.columnWrite(myRow, myCol, formula, 'formula', formats.formulaFormat(myRow))
+                ci.columnWrite(
+                    myRow, myCol, formula, "formula", formats.formulaFormat(myRow)
+                )
 
-            elif tag == 'month':
+            elif tag == "month":
                 formula = "=MONTH(a" + str(myRow + 1) + ")"
-                ci.columnWrite(myRow, myCol, formula, 'formula', formats.formulaFormat(myRow))
+                ci.columnWrite(
+                    myRow, myCol, formula, "formula", formats.formulaFormat(myRow)
+                )
 
             elif tag == "shares":
-                ci.columnWrite(myRow, myCol, value, 'number', formats.numberFormat(myRow))
+                ci.columnWrite(
+                    myRow, myCol, value, "number", formats.numberFormat(myRow)
+                )
 
             elif tag == "invest_amt" or tag == "amount":
                 # print(tag,":",value)
-                ci.columnWrite(myRow, myCol, value, 'currency', formats.currencyFormat(myRow))
+                ci.columnWrite(
+                    myRow, myCol, value, "currency", formats.currencyFormat(myRow)
+                )
 
             else:
-                ci.columnWrite(myRow, myCol, value, 'text', formats.textFormat(myRow))
+                ci.columnWrite(myRow, myCol, value, "text", formats.textFormat(myRow))
 
             myCol = myCol + 1
 

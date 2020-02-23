@@ -6,6 +6,7 @@ import csv
 import xlsxwriter
 import common_xls_formats
 
+
 class PortfolioValue:
 
     lookups = None
@@ -25,26 +26,26 @@ class PortfolioValue:
         "Average Cost Per Share": "avg_cost_per_share",
         "Gain/Loss 12-Month": "gain_loss_last_12m",
         "Gain/Loss": "gain_loss",
-        "Gain/Loss (%)": "gain_loss_pct"
+        "Gain/Loss (%)": "gain_loss_pct",
     }
 
-    def __init__ (self, filename = None, lookups = None, loadIt = True ):
+    def __init__(self, filename=None, lookups=None, loadIt=True):
         #
         self.data = dict()
         self.filename = filename
         self.headers = []
         self.labels = []
 
-        if lookups != None and isinstance(lookups,dict):
+        if lookups != None and isinstance(lookups, dict):
             self.lookups = lookups
 
         if loadIt == True and self.filename != None:
             self.LoadValues()
 
-    def Headers (self):
+    def Headers(self):
         return self.headers
 
-    def Labels (self):
+    def Labels(self):
         return self.labels
 
     def GetValue(self, key, label):
@@ -59,7 +60,7 @@ class PortfolioValue:
             return None
 
     #
-    def LoadValues(self, filename = None, lookups = None ):
+    def LoadValues(self, filename=None, lookups=None):
 
         # print("In pv.LoadValues")
         if self.filename == None and filename == None:
@@ -73,14 +74,16 @@ class PortfolioValue:
             print("No lookups provided")
             # return
 
-        if lookups != None and isinstance(lookups,dict) == False:
+        if lookups != None and isinstance(lookups, dict) == False:
             self.lookups = lookups
             print("Lookups not valid type")
             return
 
         foundHeader = False
         numFields = 2
-        pvalueReader = csv.reader(open(self.filename, newline=''), delimiter=',', quotechar='"')
+        pvalueReader = csv.reader(
+            open(self.filename, newline=""), delimiter=",", quotechar='"'
+        )
         i = 0
         self.headers.clear()
         self.labels.clear()
@@ -96,11 +99,11 @@ class PortfolioValue:
             sname = row[0]
 
             if sname == "Cash":
-                print(sname,":",row[7])
+                print(sname, ":", row[7])
                 continue
 
             if sname == "Totals":
-                print(sname,":",row[7])
+                print(sname, ":", row[7])
                 continue
 
             # print("row:",i,":",row[0])
@@ -118,11 +121,11 @@ class PortfolioValue:
                         self.headers.append(r)
                         self.labels.append(lbl)
 
-                if (len(r) == len(self.labels) and len(r) == len(self.headers)):
+                if len(r) == len(self.labels) and len(r) == len(self.headers):
                     foundHeader = True
                     numFields = len(row)
 
-            else: # foundHeader = true
+            else:  # foundHeader = true
                 # print("Processing row:",row)
                 myValues = dict()
                 mySymbol = None
@@ -133,20 +136,20 @@ class PortfolioValue:
                     key = self.labels[j]
                     # print(key,":",value)
                     if key != None:
-                        value = value.replace(',', '')
-                        value = value.replace('$', '')
-                        value = value.replace('#', '')
-                        value = value.replace('%', '')
+                        value = value.replace(",", "")
+                        value = value.replace("$", "")
+                        value = value.replace("#", "")
+                        value = value.replace("%", "")
 
                         if key == "name":
                             myName = value
                             # print("myName[", myName, "]")
 
                         if key == "symbol":
-                            mySymbol = value;
+                            mySymbol = value
                             # print("mySymbol[",mySymbol,"]",len(mySymbol))
 
-                        myValues[key] = value;
+                        myValues[key] = value
 
                 # print(myName,mySymbol)
                 if mySymbol == None or len(mySymbol) == 0:
@@ -165,11 +168,10 @@ class PortfolioValue:
                 # print(mySymbol,":",myValues)
                 self.data[mySymbol] = myValues
 
-
     #
-    def WriteValues (self,  workbook, formats):
+    def WriteValues(self, workbook, formats):
 
-        worksheet = workbook.add_worksheet('Portfolio')
+        worksheet = workbook.add_worksheet("Portfolio")
 
         myKeys = self.data.keys()
 
@@ -179,7 +181,7 @@ class PortfolioValue:
         myColumn = 0
         for h in self.headers:
             ci = common_xls_formats.ColumnInfo(worksheet, h, myColumn)
-            ci.columnWrite(myRow, myColumn, h, 'text', formats.headerFormat(), True)
+            ci.columnWrite(myRow, myColumn, h, "text", formats.headerFormat(), True)
             columnInfo.append(ci)
             myColumn = myColumn + 1
 
@@ -191,22 +193,44 @@ class PortfolioValue:
                 ci = columnInfo[myColumn]
 
                 if l == "shares":
-                    ci.columnWrite(myRow, myColumn, v[l], 'number', formats.numberFormat(myRow))
+                    ci.columnWrite(
+                        myRow, myColumn, v[l], "number", formats.numberFormat(myRow)
+                    )
 
-                elif l == "quote" or l == "price_day_change" or l == 'market_value' or l == 'gain_loss' or l == 'avg_cost_per_share' or l == 'gain_loss_last_12m' or l == 'cost_basis':
-                    ci.columnWrite(myRow, myColumn, v[l], 'currency', formats.currencyFormat(myRow))
+                elif (
+                    l == "quote"
+                    or l == "price_day_change"
+                    or l == "market_value"
+                    or l == "gain_loss"
+                    or l == "avg_cost_per_share"
+                    or l == "gain_loss_last_12m"
+                    or l == "cost_basis"
+                ):
+                    ci.columnWrite(
+                        myRow, myColumn, v[l], "currency", formats.currencyFormat(myRow)
+                    )
 
                 elif l == "price_day_change_pct" or l == "gain_loss_pct":
                     # since I'm already reading in a percent, it needs to be converted back to a float
                     fValue = ci.convertFloat(v[l])
                     if fValue != None:
-                        fValue = fValue / 100;
-                        ci.columnWrite(myRow, myColumn, fValue, 'percent', formats.percentFormat(myRow))
+                        fValue = fValue / 100
+                        ci.columnWrite(
+                            myRow,
+                            myColumn,
+                            fValue,
+                            "percent",
+                            formats.percentFormat(myRow),
+                        )
                     else:
-                        ci.columnWrite(myRow, myColumn, v[l], "text", formats.textFormat(myRow))
+                        ci.columnWrite(
+                            myRow, myColumn, v[l], "text", formats.textFormat(myRow)
+                        )
 
                 else:
-                    ci.columnWrite(myRow, myColumn, v[l], 'text', formats.textFormat(myRow))
+                    ci.columnWrite(
+                        myRow, myColumn, v[l], "text", formats.textFormat(myRow)
+                    )
 
                 myColumn = myColumn + 1
 
@@ -229,15 +253,12 @@ if __name__ == "__main__":
         elif i == 2:
             outFilename = sys.argv[i]
         else:
-            print("Ignoring extra arguments",sys.argv[i])
+            print("Ignoring extra arguments", sys.argv[i])
 
     workbook = xlsxwriter.Workbook(outFilename)
-    formats = common_xls_formats.XLSFormats(workbook,5)
+    formats = common_xls_formats.XLSFormats(workbook, 5)
 
     pv = PortfolioValue(inFilename)
-    pv.WriteValues(workbook,formats)
+    pv.WriteValues(workbook, formats)
 
     workbook.close()
-
-
-
