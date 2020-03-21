@@ -270,7 +270,7 @@ class Entry:
             #
             if len(date_elem[2]) < 4:
                 year = int(date_elem[2])
-                # Since Quicken on exports 2 digit year, I took this simple approach
+                # Since Quicken originally exports 2 digit year, I took this simple approach
                 if year > 50:
                     year = 1900 + year
                 else:
