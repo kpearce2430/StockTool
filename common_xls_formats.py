@@ -403,7 +403,7 @@ def InitType(formats):
         elif name == "url" and hasattr(formats, "textFormat"):
             typeFormats[name] = formats.textFormat
         elif name == "accounting" and hasattr(formats, "accountingFormat"):
-            typeFormats[name] = formats.accountFormat
+            typeFormats[name] = formats.accountingFormat
         else:
             print("What the what? -->", name)
 
