@@ -110,10 +110,18 @@ def printEntries( worksheet, entries, formats, startRow=0, startColumn=0 ):
                 ci.columnWrite(myRow, myColumn, value, ec.Type, formats.numberFormat(myRow))
             elif ec.Type == 'date':
                 ci.columnWrite(myRow, myColumn, value, ec.Type, formats.dateFormat(myRow))
+                dateCol = xlsxwriter.utility.xl_col_to_name(myColumn)
+            elif ec.Type == "formula":
+                if ec.Header == "Month":
+                    fmt = "=MONTH(" + dateCol + str(myRow + 1) + ")"
+                elif ec.Header == "Year":
+                    fmt = "=YEAR(" + dateCol + str(myRow + 1) + ")"
+                ci.columnWrite(myRow,myColumn,fmt,ec.Type, formats.formulaFormat(myRow))
             else:
-                ci.columnWrite(myRow,myColumn,value,ec.Type,formats.textFormat(myRow))
+                ci.columnWrite(myRow,myColumn,value,ec.Type,formats.formulaFormat(myRow))
 
             myColumn = myColumn + 1
+
         myRow = myRow + 1
 
     #
@@ -229,6 +237,8 @@ if __name__ == "__main__":
     T = transaction.Transactions(workbook,formats)
     T.loadTransactions(inFilename,lookUps)
     T.writeTransactions(0,0)
+    T.getDividends()
+
     translist = T.transactions
 
     #
@@ -562,7 +572,9 @@ if __name__ == "__main__":
 
     # add the individual stock sheets
 
+
     maxRow = myRow = 1
+    # picker = {}
     for key, value in sorted(symbols.items()):
 
         t = symbols[key]
@@ -578,11 +590,11 @@ if __name__ == "__main__":
         if t.numShares() <= 0:
             continue
 
+
         # print('Symbol: ' + key)
         worksheetName = t.worksheetName()
         if len(worksheetName) > 30 :
             worksheetName = worksheetName[:30]
-
 
         worksheet = workbook.add_worksheet(worksheetName)
         myUrl = "internal: 'Stock Analysis'!A1"
