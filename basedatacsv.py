@@ -52,6 +52,8 @@ def CreateEntryTypes():
         "Sold Lots",
         "Price Per Share",
         "Cost",
+        "Month",
+        "Year"
     ]
     jsonTags = [
         "entryDate",
@@ -67,6 +69,8 @@ def CreateEntryTypes():
         "SoldLots",
         "PricePerShare",
         "Cost",
+        "month",
+        "year"
     ]
     types = [
         "date",
@@ -82,6 +86,8 @@ def CreateEntryTypes():
         "text",
         "currency",
         "currency",
+        "formula",
+        "formula"
     ]
 
     entryTypes = []
