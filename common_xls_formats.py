@@ -36,6 +36,7 @@ class XLSFormats:
         self.timestamps = []
         self.texts = []
         self.urls = []
+        self.accounting = []
 
         if workbook != None:
             self.header_format = workbook.add_format()
@@ -87,6 +88,12 @@ class XLSFormats:
                 text_format.set_bg_color(self.colors[i])
                 self.texts.append(text_format)
 
+                accounting_format = workbook.add_format()
+                accounting_format.set_font_size(14)
+                accounting_format.set_num_format(44)
+                accounting_format.set_bg_color(self.colors[i])
+                self.accounting.append(accounting_format)
+
         else:
             self.header_format = None
 
@@ -120,6 +127,10 @@ class XLSFormats:
     def textFormat(self, row=1):
         i = row % self.numberShades
         return self.texts[i]
+
+    def accountingFormat(self, row=1):
+        i = row % self.numberShades
+        return self.accounting[i]
 
 
 #
@@ -228,7 +239,7 @@ class ColumnInfo:
             self.worksheet.write(Row, Column, "", Format)
             return
 
-        if Type == "currency" or Type == "percent" or Type == "number":
+        if Type == "currency" or Type == "percent" or Type == "number" or Type == "accounting":
             fValue = self.convertFloat(Value)
             if fValue == None:
                 # print("something is there, but its not a float")
@@ -372,6 +383,7 @@ def InitType(formats):
         "timestamp",
         "text",
         "url",
+        "accounting",
     ]:
         # print (name)
         if name == "currency" and hasattr(formats, "currencyFormat"):
@@ -390,6 +402,8 @@ def InitType(formats):
             typeFormats[name] = formats.timestampFormat
         elif name == "url" and hasattr(formats, "textFormat"):
             typeFormats[name] = formats.textFormat
+        elif name == "accounting" and hasattr(formats, "accountingFormat"):
+            typeFormats[name] = formats.accountFormat
         else:
             print("What the what? -->", name)
 
@@ -493,7 +507,12 @@ if __name__ == "__main__":
                     myRow, myCol, value, "number", formats.numberFormat(myRow)
                 )
 
-            elif tag == "invest_amt" or tag == "amount":
+            elif tag == "invest_amt":
+                # print(tag,":",value)
+                ci.columnWrite(
+                    myRow, myCol, value, "accounting", formats.accountingFormat(myRow)
+                )
+            elif tag == "amount":
                 # print(tag,":",value)
                 ci.columnWrite(
                     myRow, myCol, value, "currency", formats.currencyFormat(myRow)
