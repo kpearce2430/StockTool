@@ -5,7 +5,10 @@ import sys
 import csv
 import xlsxwriter
 import json
+import copy
 import common_xls_formats
+import datetime
+import numpy
 
 
 class Transaction:
@@ -36,6 +39,52 @@ class Transaction:
     def getDate(self):
         return self.get_value("date")
 
+    def getDateTimeDate(self):
+        if not hasattr(self,"transDatetime"):
+           self.transDateTime = datetime.date(int(self.getYear()),int(self.getMonth()),int(self.getDay()))
+
+        return self.transDateTime
+
+    def getYear(self):
+        if not hasattr(self,"year"):
+            d = self.getDate()
+            ds = d.split("/")
+            self.year = ds[2]
+            self.month = ds[0]
+            self.day = ds[1]
+
+        return self.year
+
+    def getMonth(self):
+        if not hasattr(self,"month"):
+            d = self.getDate()
+            ds = d.split("/")
+            self.year = ds[2]
+            self.month = ds[0]
+            self.day = ds[1]
+
+        return self.month
+
+    def getDay(self):
+        if not hasattr(self,"day"):
+            d = self.getDate()
+            ds = d.split("/")
+            self.year = ds[2]
+            self.month = ds[0]
+            self.day = ds[1]
+
+        return self.day
+
+    def getAmount(self):
+        if not hasattr(self,"amount"):
+
+            if self.get_value("type") == "Reinvest Dividend":
+                self.amount = self.get_value("invest_amt")
+            else:
+                self.amount = self.get_value("amount")
+
+        return self.amount
+
 
 class Transactions:
     def __init__(self, workbook, formats):
@@ -45,7 +94,8 @@ class Transactions:
         self.transactions = []
         self.jsonTags = []
         self.headers = []
-        self.columns = {}  # for ColumnInfo class
+        self.transColumns = {}  # for ColumnInfo class
+        self.divColumns = {} # for Dividend sheet
 
     def loadTransactions(self, infilename, lookups):
 
@@ -150,12 +200,12 @@ class Transactions:
         print("Loaded ", len(self.transactions), " transactions")
 
     def writeTransactionWorksheetHeaders(self, worksheet, startRow=0, startColumn=0):
-        self.columns.clear()
+        self.transColumns.clear()
         myCol = startColumn
         # headers = TransactionHeaders()
         for h in self.headers:
             ci = common_xls_formats.ColumnInfo(worksheet, h, myCol)
-            self.columns[myCol] = ci
+            self.transColumns[myCol] = ci
             ci.columnWrite(
                 startRow, myCol, h, "text", self.formats.headerFormat(), True
             )
@@ -170,7 +220,7 @@ class Transactions:
 
             myTag = self.jsonTags[i]
             value = trans.get_value(myTag)
-            ci = self.columns[myCol]
+            ci = self.transColumns[myCol]
 
             if myTag == "date":
                 ci.columnWrite(
@@ -187,8 +237,8 @@ class Transactions:
                 )
 
             elif myTag == "amount":
-                if trans.get_value("type") == "Reinvest Dividend":
-                    value = trans.get_value("invest_amt")
+                # if trans.get_value("type") == "Reinvest Dividend":
+                value = trans.getAmount()
                 ci.columnWrite(
                     startRow,
                     myCol,
@@ -260,11 +310,141 @@ class Transactions:
                 self.writeTransactionWorksheetRow(myWorksheet, t, row, startColumn)
                 row = row + 1
 
-        for myCol in self.columns:
-            ci = self.columns[myCol]
+        for myCol in self.transColumns:
+            ci = self.transColumns[myCol]
             ci.columnSetSize(1.3)
             # print("column:",myCol,",",str(ci))
             # myWorksheet.set_column(ci.columnNumber, ci.columnNumber, ci.columnSize(1.3))
+
+    def getTransactions(self, filterFunc, *args):
+        #
+        results = []
+        for t in self.transactions:
+            if filterFunc != None:
+                if filterFunc(t, args) == True:
+                    print("match:", t)
+                    p = copy.deepcopy(t)
+                    # p = t.deepcopy(dict)
+                    results.append(p)
+                    # self.writeTransactionWorksheetRow(myWorksheet, t, row, startColumn)
+                    # row = row + 1
+            # else:
+            # self.writeTransactionWorksheetRow(myWorksheet, t, row, startColumn)
+            # row = row + 1
+
+        return results
+
+    def getDividends(self,monthsAgo=36, startRow = 0, startColumn = 0 ):
+
+        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
+        # date = "01/01/" + str(startYear)
+
+        pickList = dict()
+        pickList["type"] = tTypes
+        pickList["months"] = monthsAgo
+        # pickList["symbol"] = ["AAPL", "HD","USAIX","T"]
+
+        matchingTrans = []
+
+        for t in self.transactions:
+
+            if pickByFields(t, pickList):
+                p = copy.deepcopy(t)
+                matchingTrans.append(p)
+
+        # Now we have all the transactions required to make the
+        # Dividend sheet.
+        print(len(matchingTrans))
+
+        # Need a list of the symbols
+        symbolList = []
+        dividendData = {}
+
+        endDate = datetime.datetime.today()
+        for m in matchingTrans:
+            sym = m.get_value("symbol")
+            try:
+                symbolList.index(sym)
+            except ValueError:
+                symbolList.append(sym)
+
+            sDiv = dividendData.get(sym)
+            if sDiv == None:
+                sDiv = {}
+                sDiv["symbol"] = sym
+                sDiv["dividends"] = numpy.zeros((monthsAgo + 1))
+                divSheet = sDiv["dividends"]
+                dividendData[sym] = sDiv
+            else:
+                divSheet = sDiv["dividends"]
+
+            transDate = m.getDateTimeDate()
+            tranMonthsAgo = (endDate.year - transDate.year) * 12 + (
+                    endDate.month - transDate.month
+            )
+
+            # print(sym,":",transDate," is ",tranMonthsAgo," months ago:", m.get_value("amount"))
+
+            divSheet[tranMonthsAgo] += float(m.getAmount())
+
+        # print(symbolList)
+        symbolList.sort()
+        # for s in symbolList:
+        #    print(s,":",dividendData[s])
+
+        if self.workbook == None:
+            return None
+
+        self.divColumns.clear() # for Dividend sheet
+
+        myWorksheet = self.workbook.add_worksheet("Dividends " + str(monthsAgo))
+        myRow = startRow
+        myCol = startColumn
+        # headers = TransactionHeaders()
+
+        ci = common_xls_formats.ColumnInfo(myWorksheet, "Symbol", myCol)
+        self.divColumns[myCol] = ci
+        ci.columnWrite(
+            startRow, myCol, "Symbol", "text", self.formats.headerFormat(), True
+        )
+        myCol += 1
+
+        for i in range (0,monthsAgo+1):
+
+            colDateT = monthdelta(datetime.date.today(),-i)
+
+            colHeader = str(colDateT.month) + "/" + str(colDateT.year)
+
+            ci = common_xls_formats.ColumnInfo(myWorksheet, colHeader, myCol)
+            self.divColumns[myCol] = ci
+            ci.columnWrite(
+                startRow, myCol, colHeader, "text", self.formats.headerFormat(), True
+            )
+            myCol = myCol + 1
+
+        myRow += 1
+        for s in symbolList:
+            myCol = 0
+
+            ci.columnWrite(myRow,myCol,s,"text",self.formats.textFormat(myRow),True)
+            myCol += 1
+            sDiv = dividendData[s]
+            mDivs = sDiv["dividends"]
+            for i in range(0,len(mDivs)):
+                ci.columnWrite(myRow,myCol,mDivs[i],"accounting",self.formats.accountingFormat(myRow))
+                myCol += 1
+            myRow += 1
+
+        ci = self.divColumns[0]
+        ci.columnWrite(myRow,0,"Total","text",self.formats.textFormat(myRow))
+        ci.columnSetSize(1.3)
+
+        for myCol in range(1,monthsAgo+2):
+            ci = self.divColumns[myCol]
+            cName = xlsxwriter.utility.xl_col_to_name(myCol)
+            myFormula = '=SUM(' + cName + str(startRow+2) + ":" + cName + str(myRow) + ")"
+            ci.columnWrite(myRow,myCol,myFormula,"formula",self.formats.currencyFormat(myRow))
+            ci.columnSetSize(1.3)
 
 
 def TransactionJsonTags():
@@ -328,6 +508,108 @@ def pickSymbol(trans, fArgs):
         return False
 
 
+#
+# fieldList is expected to be a set of fields with the Transaction
+# where all the individual fields are 'and'.
+# if the field is a list, those values are 'or'.
+#  In the case of 'date', do the date math to compute if the transaction date is greater than the
+#  date in the fieldList
+#
+def pickByFields(trans, fieldList):
+
+    if not isinstance(fieldList, dict):
+        return True
+
+    for k in fieldList.keys():
+        v = fieldList[k]
+
+        if k == "date" or k == "months":
+
+            # tDate = trans.get_value("date")
+            # tDateV = tDate.split("/")
+            # tDateT = datetime.date(int(trans.getYear), int(), int(tDateV[1]))
+            tDateT = trans.getDateTimeDate()
+
+            if k == "date":
+                kDate = fieldList[k]
+                kDateV = kDate.split("/")
+                kDateT = datetime.date(int(kDateV[2]), int(kDateV[0]), int(kDateV[1]))
+                if tDateT > kDateT:
+                    continue
+                else:
+                    return False
+            else:  # months
+                monthsAgo = int(v)
+                yearsAgo = int(monthsAgo / 12)
+                monthsAgo = int(monthsAgo % 12)
+
+                nowDateT = datetime.datetime.now()
+                prevDateT = datetime.date(
+                    nowDateT.year - yearsAgo, nowDateT.month - monthsAgo, 1
+                )  # always to the 1st of the month
+                # print("Prev Date:",prevDateT)
+
+                if tDateT > prevDateT:
+                    continue
+                else:
+                    return False
+
+        elif isinstance(v, list):
+            foundIt = False
+            for l in v:
+                if trans.get_value(k) == l:
+                    foundIt = True
+                    break  # for
+
+            if foundIt == False:  # no matching in list
+                return False
+
+        elif trans.get_value(k) != v:
+            return False
+
+    # if we made it all the way here, return TRUE
+    return True
+
+
+def pickByDate(trans, *args):
+
+    myArgs = args[0]
+    if len(myArgs) < 2:
+        print("Nope, need symbol and date:", len(myArgs), ":", myArgs)
+        sys.exit(-1)
+        return False
+
+    mySymbol = myArgs[0]
+
+    tSymbol = trans.get_value("symbol")
+    if tSymbol != mySymbol:
+        return False
+
+    myDate = myArgs[1]
+    myDateValues = myDate.split("/")
+    # datetime.date(2008, 6, 24)
+    myDater = datetime.date(
+        int(myDateValues[2]), int(myDateValues[0]), int(myDateValues[1])
+    )
+
+    tDate = trans.get_value("date")
+    myTransValues = tDate.split("/")
+    myTransDate = datetime.date(
+        int(myTransValues[2]), int(myTransValues[0]), int(myTransValues[1])
+    )
+
+    if myTransDate > myDater:
+        return True
+    else:
+        return False
+
+def monthdelta(date, delta):
+    m, y = (date.month+delta) % 12, date.year + ((date.month)+delta-1) // 12
+    if not m: m = 12
+    d = min(date.day, [31,
+        29 if y%4==0 and not y%400==0 else 28,31,30,31,30,31,31,30,31,30,31][m-1])
+    return date.replace(day=d,month=m, year=y)
+
 if __name__ == "__main__":
     lookUps = dict()
     transactions = []
@@ -353,4 +635,11 @@ if __name__ == "__main__":
     myWorksheet = workbook.add_worksheet("APPLE")
     T.writeTransactions(2, 2, myWorksheet, pickSymbol, "AAPL")
 
+    print("Getting apple transactions")
+    arg = ("AAPL", "01/01/2018")
+    aaplTrans = T.getTransactions(pickByDate, "AAPL", "01/01/2018")
+    print(len(aaplTrans))
+
+    print("Building Dividend Sheet")
+    T.getDividends()
     workbook.close()
