@@ -239,7 +239,12 @@ class ColumnInfo:
             self.worksheet.write(Row, Column, "", Format)
             return
 
-        if Type == "currency" or Type == "percent" or Type == "number" or Type == "accounting":
+        if (
+            Type == "currency"
+            or Type == "percent"
+            or Type == "number"
+            or Type == "accounting"
+        ):
             fValue = self.convertFloat(Value)
             if fValue == None:
                 # print("something is there, but its not a float")
