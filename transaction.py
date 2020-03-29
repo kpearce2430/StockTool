@@ -9,6 +9,7 @@ import copy
 import common_xls_formats
 import datetime
 import numpy
+import calendar
 
 
 class Transaction:
@@ -40,13 +41,15 @@ class Transaction:
         return self.get_value("date")
 
     def getDateTimeDate(self):
-        if not hasattr(self,"transDatetime"):
-           self.transDateTime = datetime.date(int(self.getYear()),int(self.getMonth()),int(self.getDay()))
+        if not hasattr(self, "transDatetime"):
+            self.transDateTime = datetime.date(
+                int(self.getYear()), int(self.getMonth()), int(self.getDay())
+            )
 
         return self.transDateTime
 
     def getYear(self):
-        if not hasattr(self,"year"):
+        if not hasattr(self, "year"):
             d = self.getDate()
             ds = d.split("/")
             self.year = ds[2]
@@ -56,7 +59,7 @@ class Transaction:
         return self.year
 
     def getMonth(self):
-        if not hasattr(self,"month"):
+        if not hasattr(self, "month"):
             d = self.getDate()
             ds = d.split("/")
             self.year = ds[2]
@@ -66,7 +69,7 @@ class Transaction:
         return self.month
 
     def getDay(self):
-        if not hasattr(self,"day"):
+        if not hasattr(self, "day"):
             d = self.getDate()
             ds = d.split("/")
             self.year = ds[2]
@@ -76,7 +79,7 @@ class Transaction:
         return self.day
 
     def getAmount(self):
-        if not hasattr(self,"amount"):
+        if not hasattr(self, "amount"):
 
             if self.get_value("type") == "Reinvest Dividend":
                 self.amount = self.get_value("invest_amt")
@@ -95,7 +98,7 @@ class Transactions:
         self.jsonTags = []
         self.headers = []
         self.transColumns = {}  # for ColumnInfo class
-        self.divColumns = {} # for Dividend sheet
+        self.divColumns = {}  # for Dividend sheet
 
     def loadTransactions(self, infilename, lookups):
 
@@ -334,10 +337,11 @@ class Transactions:
 
         return results
 
-    def getDividends(self,monthsAgo=36, startRow = 0, startColumn = 0 ):
+    def getDividends(self, monthsAgo=36, startRow=0, startColumn=0):
 
+        #  These are the types of transactions that are needed to fill out
+        #  the dividend sheet
         tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
-        # date = "01/01/" + str(startYear)
 
         pickList = dict()
         pickList["type"] = tTypes
@@ -354,13 +358,15 @@ class Transactions:
 
         # Now we have all the transactions required to make the
         # Dividend sheet.
-        print(len(matchingTrans))
+        # print(len(matchingTrans))
 
         # Need a list of the symbols
         symbolList = []
         dividendData = {}
 
+        # Dont change this value:
         endDate = datetime.datetime.today()
+
         for m in matchingTrans:
             sym = m.get_value("symbol")
             try:
@@ -380,24 +386,22 @@ class Transactions:
 
             transDate = m.getDateTimeDate()
             tranMonthsAgo = (endDate.year - transDate.year) * 12 + (
-                    endDate.month - transDate.month
+                endDate.month - transDate.month
             )
-
-            # print(sym,":",transDate," is ",tranMonthsAgo," months ago:", m.get_value("amount"))
 
             divSheet[tranMonthsAgo] += float(m.getAmount())
 
-        # print(symbolList)
+        #
         symbolList.sort()
-        # for s in symbolList:
-        #    print(s,":",dividendData[s])
 
         if self.workbook == None:
             return None
 
-        self.divColumns.clear() # for Dividend sheet
+        self.divColumns.clear()  # for Dividend sheet
 
-        myWorksheet = self.workbook.add_worksheet("Dividends " + str(monthsAgo))
+        myWorksheetName = "Dividends_" + str(monthsAgo)
+
+        myWorksheet = self.workbook.add_worksheet(myWorksheetName)
         myRow = startRow
         myCol = startColumn
         # headers = TransactionHeaders()
@@ -409,11 +413,13 @@ class Transactions:
         )
         myCol += 1
 
-        for i in range (0,monthsAgo+1):
+        for i in range(0, monthsAgo + 1):
 
-            colDateT = monthdelta(datetime.date.today(),-i)
+            colDateT = monthdelta(datetime.date.today(), -i)
 
-            colHeader = str(colDateT.month) + "/" + str(colDateT.year)
+            colHeader = calendar.month_abbr[
+                colDateT.month
+            ]  # + "/" + str(colDateT.year)
 
             ci = common_xls_formats.ColumnInfo(myWorksheet, colHeader, myCol)
             self.divColumns[myCol] = ci
@@ -426,25 +432,97 @@ class Transactions:
         for s in symbolList:
             myCol = 0
 
-            ci.columnWrite(myRow,myCol,s,"text",self.formats.textFormat(myRow),True)
+            ci.columnWrite(
+                myRow, myCol, s, "text", self.formats.textFormat(myRow), True
+            )
             myCol += 1
             sDiv = dividendData[s]
             mDivs = sDiv["dividends"]
-            for i in range(0,len(mDivs)):
-                ci.columnWrite(myRow,myCol,mDivs[i],"accounting",self.formats.accountingFormat(myRow))
+            for i in range(0, len(mDivs)):
+                ci.columnWrite(
+                    myRow,
+                    myCol,
+                    mDivs[i],
+                    "accounting",
+                    self.formats.accountingFormat(myRow),
+                )
                 myCol += 1
             myRow += 1
 
         ci = self.divColumns[0]
-        ci.columnWrite(myRow,0,"Total","text",self.formats.textFormat(myRow))
+        ci.columnWrite(myRow, 0, "Total", "text", self.formats.textFormat(myRow))
         ci.columnSetSize(1.3)
 
-        for myCol in range(1,monthsAgo+2):
+        for myCol in range(1, monthsAgo + 2):
             ci = self.divColumns[myCol]
             cName = xlsxwriter.utility.xl_col_to_name(myCol)
-            myFormula = '=SUM(' + cName + str(startRow+2) + ":" + cName + str(myRow) + ")"
-            ci.columnWrite(myRow,myCol,myFormula,"formula",self.formats.currencyFormat(myRow))
+            myFormula = (
+                "=SUM(" + cName + str(startRow + 2) + ":" + cName + str(myRow) + ")"
+            )
+            ci.columnWrite(
+                myRow, myCol, myFormula, "formula", self.formats.accountingFormat(myRow)
+            )
             ci.columnSetSize(1.3)
+
+        # set up the chart basics:
+        myChart = self.workbook.add_chart({"type": "column"})
+        myChart.set_title({"name": "Dividend Chart"})
+        myChart.set_size({"width": 1000, "height": 700})
+
+        # colors = [ "#FF9900", "#00FF00","#0000FF"]
+        colors = ["#4DA6FF", "#88FF4B", "#B30059"]
+
+        numSeries = int(monthsAgo / 12)
+
+        # print("numSeries:", numSeries)
+
+        for i in range(0, numSeries):
+            seriesStartCol = 1 + (i * 12)
+            columnStart = xlsxwriter.utility.xl_col_to_name(seriesStartCol)
+
+            seriesStopCol = 12 + (i * 12)
+            columnEnd = xlsxwriter.utility.xl_col_to_name(seriesStopCol)
+
+            myValues = (
+                "="
+                + myWorksheetName
+                + "!$"
+                + columnStart
+                + "$"
+                + str(myRow + 1)
+                + ":$"
+                + columnEnd
+                + "$"
+                + str(myRow + 1)
+            )
+
+            myColValues = (
+                "="
+                + myWorksheetName
+                + "!$"
+                + columnStart
+                + "$"
+                + str(startRow + 1)
+                + ":$"
+                + columnEnd
+                + "$"
+                + str(startRow + 1)
+            )
+            # print(myValues)
+
+            myYear = endDate.year - i
+            myChart.add_series(
+                {
+                    "name": str(myYear),
+                    "values": myValues,
+                    "categories": myColValues,
+                    "fill": {"color": colors[i]},
+                }
+            )
+
+        # Insert the chart into the worksheet.
+        colName = xlsxwriter.utility.xl_col_to_name(startColumn+1)
+        myWorksheet.insert_chart( colName + str( startRow + 2 ), myChart)
 
 
 def TransactionJsonTags():
@@ -603,12 +681,30 @@ def pickByDate(trans, *args):
     else:
         return False
 
+
 def monthdelta(date, delta):
-    m, y = (date.month+delta) % 12, date.year + ((date.month)+delta-1) // 12
-    if not m: m = 12
-    d = min(date.day, [31,
-        29 if y%4==0 and not y%400==0 else 28,31,30,31,30,31,31,30,31,30,31][m-1])
-    return date.replace(day=d,month=m, year=y)
+    m, y = (date.month + delta) % 12, date.year + ((date.month) + delta - 1) // 12
+    if not m:
+        m = 12
+    d = min(
+        date.day,
+        [
+            31,
+            29 if y % 4 == 0 and not y % 400 == 0 else 28,
+            31,
+            30,
+            31,
+            30,
+            31,
+            31,
+            30,
+            31,
+            30,
+            31,
+        ][m - 1],
+    )
+    return date.replace(day=d, month=m, year=y)
+
 
 if __name__ == "__main__":
     lookUps = dict()
