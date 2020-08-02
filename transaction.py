@@ -81,7 +81,7 @@ class Transaction:
     def getAmount(self):
         if not hasattr(self, "amount"):
 
-            if self.get_value("type") == "Reinvest Dividend":
+            if self.get_value("type") == "Reinvest Dividend" or self.get_value("type") == "Add Shares":
                 self.amount = self.get_value("invest_amt")
             else:
                 self.amount = self.get_value("amount")
@@ -341,6 +341,7 @@ class Transactions:
 
         #  These are the types of transactions that are needed to fill out
         #  the dividend sheet
+        # tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
         tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
 
         pickList = dict()
