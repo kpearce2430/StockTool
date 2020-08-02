@@ -4,6 +4,7 @@ import sys
 import json
 import common_request
 import time
+import os
 from base64 import b64encode
 
 
@@ -22,7 +23,7 @@ def myHeader():
 
 def GetStockQuote(ticker):
 
-    token = "pk_189dd9a1c5814706a37220a212dc54a0"
+    token = os.environ.get("TOKEN")
     # "/batch?types=quote,stats,news,dividends&range=1y&last=3&token="
     url = (
         "https://cloud.iexapis.com/v1/stock/"
