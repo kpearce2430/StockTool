@@ -7,6 +7,7 @@ import csv
 import json
 import urllib3
 from datetime import date
+import stock_cache
 
 # import transaction
 
@@ -53,7 +54,7 @@ def CreateEntryTypes():
         "Price Per Share",
         "Cost",
         "Month",
-        "Year"
+        "Year",
     ]
     jsonTags = [
         "entryDate",
@@ -70,7 +71,7 @@ def CreateEntryTypes():
         "PricePerShare",
         "Cost",
         "month",
-        "year"
+        "year",
     ]
     types = [
         "date",
@@ -87,7 +88,7 @@ def CreateEntryTypes():
         "currency",
         "currency",
         "formula",
-        "formula"
+        "formula",
     ]
 
     entryTypes = []
@@ -230,7 +231,20 @@ class Entry:
         except:
             return 0.00
 
+    def netCost(self):
+        amt = 0.00
+        type = self.entry.get("entryType")
+        if type == "Buy" or type == "Add Shares" or type == "Reinvest Dividend":
+            amt = abs(self.amount())
+            for lot in self.soldLots:
+                amt = amt - lot.proceeds()
+
+        # print("Amount: {}".format(amt))
+        return amt
+
+
     def cost(self):
+
         amt = 0.00
         type = self.entry.get("entryType")
 
@@ -242,7 +256,8 @@ class Entry:
         return amt
 
     def sellShares(self, numSharesToSell=0.00, pricePerShare=0.00):
-        # print("Selling:",self.Field('entryDescription'),":",self.entryDate())
+        # print("Selling: {} : {} : {} ".format(self.Field('entryDescription'),self.entryDate(),self.amount()))
+
         totalShares = self.remainingShares()
         if totalShares >= numSharesToSell:
             # if there are 50 shares to sell 100 remaining shares, remove 50 and return 0
@@ -250,6 +265,7 @@ class Entry:
             # partial or full sale
             remainingShares = totalShares - numSharesToSell
             thisLot = Lot(numSharesToSell, pricePerShare, self.entry.get("entryDate"))
+            # print("This lot:",str(thisLot))
             self.soldLots.append(thisLot)
             self.entry["entryRemainingShares"] = str(remainingShares)
             return 0.00  # no more shares remaining from sell
@@ -258,8 +274,10 @@ class Entry:
             # return there are 50 more to sell.
             remainingShares = numSharesToSell - totalShares
             thisLot = Lot(totalShares, pricePerShare, self.entry.get("entryDate"))
+            # print("This lot:", str(thisLot))
             self.soldLots.append(thisLot)
             self.entry["entryRemainingShares"] = str(0.00)
+            # print("Remaining Shares:",remainingShares)
             return round(remainingShares, 4)
 
     def splitShares(self, oldShares=1.00, newShares=1.00, symbol=None):
@@ -370,9 +388,9 @@ class Account:
         if isinstance(myEntry, Entry):
             if myEntry.type() == "Sell" or myEntry.type() == "Short Sell":
                 #
-                sellShares = abs(myEntry.shares())
+                sharesToSell = abs(myEntry.shares())
                 curentShares = self.numShares()
-                if round(curentShares, 4) >= round(sellShares, 4):
+                if round(curentShares, 4) >= round(sharesToSell, 4):
 
                     #
                     pps = myEntry.price_per_share()
@@ -385,17 +403,17 @@ class Account:
                             or e.type() == "Add Shares"
                         ) and e.remainingShares() > 0.00:
                             # print("Remaining:", e.remainingShares())
-                            sellShares = e.sellShares(sellShares, pps)
+                            sharesToSell = e.sellShares(sharesToSell, pps)
                             #
-                            if sellShares <= 0.00:
+                            if sharesToSell <= 0.00:
                                 break  # for
 
-                    if sellShares > 0.0002:
+                    if sharesToSell > 0.0002:
                         print(
                             "WARNING SHARES ["
                             + myEntry.type()
                             + "] WITHOUT Buy "
-                            + str(sellShares)
+                            + str(sharesToSell)
                             + " "
                             + myEntry.symbol()
                         )
@@ -416,25 +434,25 @@ class Account:
                     e.splitShares(float(oldShares), float(newShares))
 
             elif myEntry.type() == "Remove Shares":
-                removeShares = abs(myEntry.shares())
+                sharesToRemove = abs(myEntry.shares())
                 #
                 #
                 currentShares = self.numShares()
                 #
-                if round(currentShares, 4) >= round(removeShares, 4):
+                if round(currentShares, 4) >= round(sharesToRemove, 4):
                     # we can go ahead.
                     #
                     for e in self.entries:
-                        removeShares = e.sellShares(removeShares)
-                        if removeShares <= 0:
+                        sharesToRemove = e.sellShares(sharesToRemove)
+                        if sharesToRemove <= 0:
                             break  # for
 
-                    if removeShares > 0.00:
+                    if sharesToRemove > 0.00:
                         print(
                             "WARNING SHARES ["
                             + myEntry.type()
                             + "] WITHOUT Buy "
-                            + str(removeShares)
+                            + str(sharesToRemove)
                             + " "
                             + myEntry.symbol()
                         )
@@ -512,6 +530,14 @@ class Account:
                     total = total + e.cost()
 
         return round(total, 2)
+
+    def netCost(self):
+        total = 0.00
+        for e in self.entries:
+            total = total + e.netCost()
+
+        # print("Account netCost({})".format(total))
+        return total
 
     def sold(self):
         total = 0.00
@@ -631,6 +657,15 @@ class Ticker:
 
         return round(total, 2)
 
+    def netCost(self):
+        total = 0.00
+        for key, acct in self.accounts.items():
+            total = total + acct.netCost()
+
+        # print("Ticker netCost({})".format(total))
+        return round(total, 2)
+
+
     def sold(self):
         total = 0.00
         for key, acct in self.accounts.items():
@@ -714,40 +749,23 @@ class Ticker:
             # all the data
             #  TODO: need to build cache for each item below to save transaction costs.
             #
-            url = (
-                "https://cloud.iexapis.com/v1/stock/"
-                + self.symbol.lower()
-                + "/batch?types=quote,stats,news,dividends&range=1y&last=3&token="
-                + self.token
-            )  # '
-            # print("curl ", url )
-            #
-            #
-            # url = 'https://api.iextrading.com/1.0/stock/' + self.symbol.lower() + '/quote'
-            r = self.http.request("GET", url)
+            myData = stock_cache.CacheLookup(self.symbol)
 
-            if r.status == 200:
-                myData = json.loads(r.data.decode("utf-8"))
-                # print(myData)
-                if isinstance(myData, dict):
-                    # if myData.get('news') == None:
-                    # 	print("Where is the news?")
-                    # 	sys.exit(-2)
+            if isinstance(myData, dict):
+                # if myData.get('news') == None:
+                # 	print("Where is the news?")
+                # 	sys.exit(-2)
 
-                    self.quote_data = myData.get("quote")
-                    self.stats_data = myData.get("stats")
-                    self.news_data = myData.get("news")
-                    self.chart_data = myData.get("chart")
-                    self.dividend_data = myData.get("dividends")
-                    self.close_data = myData.get("close")
-                    self.earnings = myData.get("earnings")
-                    return self.get_data(req_type)
-                else:
-                    print("Not JSON Format")
+                self.quote_data = myData.get("quote")
+                self.stats_data = myData.get("stats")
+                self.news_data = myData.get("news")
+                self.chart_data = myData.get("chart")
+                self.dividend_data = myData.get("dividends")
+                self.close_data = myData.get("close")
+                self.earnings = myData.get("earnings")
+                return self.get_data(req_type)
             else:
-                print("Request Failed[" + str(r.status) + "] " + str(r))
-                print("URL: ", url)
-                sys.exit(-1)
+                print("Not JSON Format:",str(myData))
 
         self.quote_data = None
         self.stats_data = None
@@ -860,7 +878,7 @@ def createSheet(symbols, acct_list, details):
 
         thisRow["Dividends Received"] = t.dividends_paid()
 
-        thisRow["Total Cost"] = abs(t.cost())
+        thisRow["Total Cost"] = abs(t.netCost())
 
         # thisRow['Total Sold'] = t.sold()
 
