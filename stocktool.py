@@ -271,12 +271,6 @@ if __name__ == "__main__":
 
     translist = T.transactions
 
-    #
-    # set up the http client to pull stock data.
-    #
-    http = urllib3.PoolManager()
-    urllib3.disable_warnings()
-
     symbols = dict()
     unique_accounts = []
 
@@ -302,7 +296,7 @@ if __name__ == "__main__":
             row.get_value("account"),
         )
 
-        bdata.ProcessEntry(e, symbols, unique_accounts, http)
+        bdata.ProcessEntry(e, symbols, unique_accounts)
 
     unique_accounts.sort()
 
