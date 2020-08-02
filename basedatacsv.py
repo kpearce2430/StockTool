@@ -561,7 +561,7 @@ class Account:
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 class Ticker:
-    def __init__(self, entry, http=None):
+    def __init__(self, entry):
 
         if isinstance(entry, Entry) == False:
             raise ("Invalid entry passed into Ticker")
@@ -570,7 +570,6 @@ class Ticker:
         self.symbol = entry.Field("entrySymbol")
         self.name = entry.Field("entrySecurity")  # everyone has a name
         self.accounts = dict()
-        self.http = http
         self.addToAccount(entry)
         self.token = os.environ.get("TOKEN")
 
@@ -902,7 +901,7 @@ def createSheet(symbols, acct_list, details):
         details.append(thisRow)
 
 
-def ProcessInfo(info, symbols, accounts, http):
+def ProcessInfo(info, symbols, accounts):
 
     if isinstance(info, dict):
         s = info.get("security")
@@ -914,7 +913,7 @@ def ProcessInfo(info, symbols, accounts, http):
             return
 
 
-def ProcessEntry(entry, symbols, accounts, http):
+def ProcessEntry(entry, symbols, accounts):
 
     if isinstance(entry, Entry):
         s = entry.Field("entrySymbol")
@@ -932,7 +931,7 @@ def ProcessEntry(entry, symbols, accounts, http):
             #
             # create the ticker, add the account, add the row
 
-            t = Ticker(entry, http)
+            t = Ticker(entry)
             symbols[s] = t
         else:
             t.addToAccount(entry)
@@ -947,14 +946,14 @@ def ProcessEntry(entry, symbols, accounts, http):
         raise ("Invalid parameter:", entry)
 
 
-def ProcessRow(row, symbols, accounts, http):
+def ProcessRow(row, symbols, accounts):
 
     if isinstance(row, list):
         e = Entry(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
         s = e.Field("entrySymbol")
         if s != "PM":  # and s != 'UNP':
             return
-        ProcessEntry(e, symbols, accounts, http)
+        ProcessEntry(e, symbols, accounts)
 
     else:
         raise ("Invalid parameter:", row)
@@ -978,8 +977,8 @@ if __name__ == "__main__":
         else:
             print("Ignoring extra arguments", sys.argv[i])
 
-    http = urllib3.PoolManager()
-    urllib3.disable_warnings()
+    # http = urllib3.PoolManager()
+    # urllib3.disable_warnings()
 
     symbols = dict()
     unique_accounts = []
@@ -993,6 +992,7 @@ if __name__ == "__main__":
         if len(row) == 2:
             lookup[row[0]] = row[1]
         else:
+            print("Invalid Row:",row)
             raise ("Invalid row")
 
     stockReader = csv.reader(open(inFilename, newline=""), delimiter=",", quotechar='"')
@@ -1013,7 +1013,7 @@ if __name__ == "__main__":
         s = lookup.get(k)
         row[3] = s
 
-        ProcessRow(row, symbols, unique_accounts, http)
+        ProcessRow(row, symbols, unique_accounts )
 
     unique_accounts.sort()
 
