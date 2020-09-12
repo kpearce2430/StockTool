@@ -5,12 +5,11 @@
 import http.client
 import json
 import sys
+import os
 
 #
 # from base64 import b64encode
 #
-
-
 class CommonRequest:
     def __init__(self, action, url, hdrs=None, data=None):
 
@@ -205,8 +204,8 @@ class CommonRequest:
 if __name__ == "__main__":
 
     # conn = CommonRequest("cloud.iexapis.com",True)
+    token = os.getenv("TOKEN","junk")
 
-    token = "pk_189dd9a1c5814706a37220a212dc54a0"
     url = "https://cloud.iexapis.com/v1/stock/HD/batch?types=quote&token=" + token
     # print(url)
     conn = CommonRequest("GET", url)
@@ -222,6 +221,9 @@ if __name__ == "__main__":
         # print(conn.Status())
         # print(conn.ResponseData())
 
+    # test Closing
+    conn.Close()
+    # test deleting
     del conn
 
     conn = CommonRequest("GET","http://localhost:5984")
