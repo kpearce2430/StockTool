@@ -195,6 +195,7 @@ class ColumnInfo:
         return blob
 
     def columnSize(self, factor=1.1):
+        # print("{} Setting size to {}".format(self.name,self.size))
         return self.size * factor
 
     def columnSetSize(self, factor=1.1):
@@ -209,10 +210,7 @@ class ColumnInfo:
                 return fValue
             except:
                 # write nothing
-                print(
-                    self.name, " something is there, but its not a float[", Value, "]"
-                )
-                # Worksheet.write(Row, Column, Value, Format)
+                print("{} something is there, but its not a float[{}]".format(self.name,Value))
                 return None
         else:
             return Value
@@ -247,57 +245,70 @@ class ColumnInfo:
         ):
             fValue = self.convertFloat(Value)
             if fValue == None:
-                # print("something is there, but its not a float")
+                # print("{} computing size non float {}".format(self.name),Value)
                 self.worksheet.write(Row, Column, Value, Format)
                 self.columnComputeSize(Value)
                 return
 
             self.worksheet.write_number(Row, Column, fValue, Format)
             self.columnComputeSize(fValue, Type)
+            # print("{}:{} computing size here {}".format(self.name,Type,self.size))
 
-        # elif Type == 'formula':
-        #    print(Type)
-        # elif Type == 'date':
-        #    print(Type)
-        # elif Type == 'timestamp':
-        #    print(Type)
+        #
         elif Type == "url":
             #
             self.worksheet.write_url(Row, Column, TheURL, Format, Value, None)
         else:
-            # print("default type[",Type,"]")
+            # print("{} default type[{}]".format(self.name,Type))
             self.worksheet.write(Row, Column, Value, Format)
             self.columnComputeSize(Value, Type, Split)
 
+    #
+    # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    #
     def columnComputeSize(self, field, type=None, doSplit=False):
+
+        # print("{} Setting size {} for {}".format(self.name,field,str(type)))
 
         # Already hit max
         if self.size >= self.max_size:
+            # print("{} At max size {}".format(self.name,self.max_size))
             return
 
-        mySize = 1
+        # mySize = 1
         if type == "currency" and isinstance(field, float):
             # print(self.name,":",type)
             mySize = self.columnCurrencySize(field, 2, True)
         elif type == "percent" and isinstance(field, float):
             mySize = self.columnPercentSize(field, 2, False)
-        elif type == "number" and isinstance(field, float):
-            mySize = self.columnFloatSize(field)
+        elif (type == "number" or type == "accounting") and isinstance(field, float):
+            # print("{} Dropped into number".format(self.name))
+            mySize = self.columnFloatSize(field) + 1
         elif type == "int" and isinstance(field, int):
             mySize = self.columnStringSize(field, doSplit)
         else:
+            # print("{} Dropped into other".format(self.name))
             mySize = self.columnStringSize(field, doSplit)
 
+        # print("{} mySize {} ".format(self.name,mySize))
         if mySize >= self.max_size:
+            # print("My size is at max {}".format(self.max_size))
             self.size = self.max_size
 
         elif mySize > self.size:
+            # print("{} - My size is at now {}".format(self.name,self.size))
             self.size = mySize
+        # else:
+            # print("{} - Else My size is at now {}".format(self.name,self.size))
 
+    #
+    # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    #
     def columnFloatSize(self, f=0.00, decimalPlaces=2):
 
         # Already hit max
         if self.size >= self.max_size:
+            # print("{} size {} is greater than or equal to max {}".format(self.name,self.size,self.max_size))
             return
 
         if isinstance(f, float) == False:
@@ -318,8 +329,8 @@ class ColumnInfo:
 
         num_commas = int((digits - 1) / 3)
 
-        myLen = myLen + digits + num_commas
-
+        myLen = myLen + digits + num_commas + 1 # add in the decimal point for float
+        # print("{} Length for {} is {}".format(self.name,f,myLen))
         return myLen
 
     def columnCurrencySize(self, f=0.0, decimalPlaces=2, parens=False):
@@ -410,7 +421,7 @@ def InitType(formats):
         elif name == "accounting" and hasattr(formats, "accountingFormat"):
             typeFormats[name] = formats.accountingFormat
         else:
-            print("What the what? -->", name)
+            print("ERROR: What the what? -->", name)
 
     return typeFormats
 
@@ -425,15 +436,12 @@ def loadDataLabels(filename, formats):
     for row in lookupReader:
         i = i + 1
         if len(row) != 3:
-            print("Error with row(", i, ") :", row)
+            print("ERROR: with row(", i, ") :", row)
             continue
         myType = row[2]
         myFormat = formats.get(myType)
         myField = IEXField(row[0], row[1], myType, myFormat)
         dataSet.append(myField)
-
-    # for d in dataSet:
-    #   print(d)
 
     return dataSet
 
