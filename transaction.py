@@ -8,6 +8,7 @@ import json
 import copy
 import common_xls_formats
 import datetime
+import time
 import numpy
 import calendar
 
@@ -47,6 +48,13 @@ class Transaction:
             )
 
         return self.transDateTime
+
+    def getTimeTime(self):
+        if not hasattr(self, "transTimeTime"):
+            self.transTimeTime = time.strptime(self.getDate(),"%m/%d/%Y")
+
+        return self.transTimeTime
+
 
     def getYear(self):
         if not hasattr(self, "year"):
