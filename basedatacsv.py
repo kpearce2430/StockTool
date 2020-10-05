@@ -242,7 +242,6 @@ class Entry:
         # print("Amount: {}".format(amt))
         return amt
 
-
     def cost(self):
 
         amt = 0.00
@@ -588,15 +587,15 @@ class Ticker:
         return (
             "Ticker:"
             + self.symbol
-            + " "
+            + " Name:"
             + self.name
-            + " "
+            + " Shares:"
             + str(self.numShares())
-            + " "
+            + " Div"
             + str(self.current_dividend())
-            + " "
+            + " Div Next 12"
             + str(self.dividend_next12mo())
-            + " "
+            + " Latest Price"
             + str(self.latest_price())
         )
 
@@ -664,7 +663,6 @@ class Ticker:
         # print("Ticker netCost({})".format(total))
         return round(total, 2)
 
-
     def sold(self):
         total = 0.00
         for key, acct in self.accounts.items():
@@ -695,7 +693,15 @@ class Ticker:
                 for myJson in myData:
                     #
                     if firstOne == True:
-                        self.dividend_amount = float(myJson.get("amount"))
+                        try:
+                            self.dividend_amount = float(myJson.get("amount"))
+                        except:
+                            # print("Cound not convert '{}' to float".format(str(myJson.get("amount"))))
+                            # print("myData",myData)
+                            # print("myJson",myJson)
+                            self.dividend_amount = 0.0
+                            self.dividend_multiplier = 0.0
+
                         #
                         #
                         firstOne = False
@@ -764,7 +770,7 @@ class Ticker:
                 self.earnings = myData.get("earnings")
                 return self.get_data(req_type)
             else:
-                print("Not JSON Format:",str(myData))
+                print("Not JSON Format:", str(myData))
 
         self.quote_data = None
         self.stats_data = None
@@ -831,7 +837,8 @@ def printSymbols(symbols):
 
     print("Symbols:")
     for key, value in symbols.items():
-        print(key + ":" + str(value))
+        print("key {}[{}]".format(key,str(value)))
+        # print(key + ":" + str(value))
         t = symbols[key]
         t.printAccounts()
 
@@ -992,7 +999,7 @@ if __name__ == "__main__":
         if len(row) == 2:
             lookup[row[0]] = row[1]
         else:
-            print("Invalid Row:",row)
+            print("Invalid Row:", row)
             raise ("Invalid row")
 
     stockReader = csv.reader(open(inFilename, newline=""), delimiter=",", quotechar='"')
@@ -1013,7 +1020,7 @@ if __name__ == "__main__":
         s = lookup.get(k)
         row[3] = s
 
-        ProcessRow(row, symbols, unique_accounts )
+        ProcessRow(row, symbols, unique_accounts)
 
     unique_accounts.sort()
 
