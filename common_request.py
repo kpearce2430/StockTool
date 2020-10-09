@@ -1,7 +1,6 @@
 #
+# Copyright (c) 2020 Pearce Software Solutions. All rights reserved.
 #
-#
-
 import http.client
 import json
 import sys
