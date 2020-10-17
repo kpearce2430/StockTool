@@ -5,8 +5,19 @@ import sys
 import csv
 import xlsxwriter
 import common_xls_formats
+import argparse
+import datetime
 
-
+#
+# This class loads the portfolio value output from Quicken as well as
+# the lookups.csv.
+#  The lookups.csv is a self maintained list of Names and their Symbols.  It is also
+#  Used with transactions.py  to identify any stocks that are no longer considered to be relavent.
+#  The stocks typcially fall into 2 categories:
+#  1. Stocks no longer valid due to $bankruptcy or merger.
+#  2. Mutual Funds which do not have a common symbol such as private funds in a 401k
+#
+#
 class PortfolioValue:
 
     lookups = None
@@ -29,18 +40,37 @@ class PortfolioValue:
         "Gain/Loss (%)": "gain_loss_pct",
     }
 
-    def __init__(self, filename=None, lookups=None, loadIt=True):
+    def __init__(self, portfoliofilename=None, lookupfilename=None):
         #
         self.data = dict()
-        self.filename = filename
+        self.portfolioFilename = portfoliofilename
+        self.lookupFilename = lookupfilename
         self.headers = []
         self.labels = []
+        print("PV:{} LU:{}".format(portfoliofilename, lookupfilename))
 
-        if lookups != None and isinstance(lookups, dict):
-            self.lookups = lookups
+        if self.lookupFilename != None:
+            self.LoadLookup(lookupfilename)
 
-        if loadIt == True and self.filename != None:
-            self.LoadValues()
+        if  self.portfolioFilename != None:
+            self.LoadValues(portfoliofilename)
+
+
+
+    def __str__(self):
+        myStr = self.filename \
+                + "\ncreated:" \
+                + str(self.created) \
+                + "\nheaders:" \
+                + str(self.headers) \
+                + "\nlabels:" \
+                + str(self.labels) \
+                + "\nlooksups:" \
+                + str(self.lookups) \
+                + "\ndata:" \
+                + str(self.data) \
+                + "."
+        return myStr
 
     def Headers(self):
         return self.headers
@@ -60,23 +90,23 @@ class PortfolioValue:
             return None
 
     #
-    def LoadValues(self, filename=None, lookups=None):
+    def LoadValues(self, filename=None):
 
         # print("In pv.LoadValues")
         if self.filename == None and filename == None:
-            print("No filename provided")
+            print("WARNING: No filename provided to Load Values")
             return
 
         if filename != None:
             self.filename = filename
 
-        if self.lookups == None and lookups == None:
-            print("No lookups provided")
-            # return
+        if self.lookups == None:
+            print("Error: No lookups provided")
+            return
 
-        if lookups != None and isinstance(lookups, dict) == False:
-            self.lookups = lookups
-            print("Lookups not valid type")
+        if self.lookups != None and isinstance(self.lookups, dict) == False:
+            # self.lookups = lookups
+            print("ERROR: Lookups not valid type")
             return
 
         foundHeader = False
@@ -87,11 +117,22 @@ class PortfolioValue:
         i = 0
         self.headers.clear()
         self.labels.clear()
-
         for row in pvalueReader:
             i = i + 1
+
+            if foundHeader == False and len(row) == 1:
+                parts = row[0].split(':')
+                if parts[0] == "Created":
+                    print(">>",parts)
+                    date=parts[1].lstrip()
+                    self.created=datetime.datetime.strptime(date, "%Y-%m-%d").date()
+                    print("Created:{}".format(date))
+
+                continue
+
             if len(row) < numFields:
                 # print("Skipping row ",i)
+                # print(">>>", row)
                 continue
 
             sname = row[0]
@@ -118,23 +159,30 @@ class PortfolioValue:
 
                     for r in row:
                         lbl = self.knownFields.get(r)
-                        self.headers.append(r)
-                        self.labels.append(lbl)
+                        if lbl != None:
+                            self.headers.append(r)
+                            self.labels.append(lbl)
+                        else:
+                            print("Warning: No label/header for {}".format(r))
 
-                if len(r) == len(self.labels) and len(r) == len(self.headers):
                     foundHeader = True
+                    print("Found Header")
                     numFields = len(row)
+                else:
+                    print(">>>",row)
+
+                # print("{} : {} : {}".format(len(r),len(self.labels),len(self.headers)))
 
             else:  # foundHeader = true
                 # print("Processing row:",row)
                 myValues = dict()
                 mySymbol = None
-                # print(self.labels)
+                #
                 for j in range(len(self.labels)):
-                    # print(j)
+                    #
                     value = row[j]
                     key = self.labels[j]
-                    # print(key,":",value)
+                    #
                     if key != None:
                         value = value.replace(",", "")
                         value = value.replace("$", "")
@@ -143,15 +191,13 @@ class PortfolioValue:
 
                         if key == "name":
                             myName = value
-                            # print("myName[", myName, "]")
 
+                        #
                         if key == "symbol":
                             mySymbol = value
-                            # print("mySymbol[",mySymbol,"]",len(mySymbol))
 
                         myValues[key] = value
 
-                # print(myName,mySymbol)
                 if mySymbol == None or len(mySymbol) == 0:
                     if self.lookups != None:
                         mySymbol = self.lookups.get(myName)
@@ -167,9 +213,12 @@ class PortfolioValue:
 
                 # print(mySymbol,":",myValues)
                 self.data[mySymbol] = myValues
+                # print(self.data[mySymbol])
+
+        print("Loaded {} values".format(i))
 
     #
-    def WriteValues(self, workbook, formats):
+    def WriteValuesWorksheet(self, workbook, formats):
 
         worksheet = workbook.add_worksheet("Portfolio")
 
@@ -239,26 +288,78 @@ class PortfolioValue:
         for ci in columnInfo:
             ci.columnSetSize(1.3)
 
+    def LoadLookup(self,  lookupFilename = "lookup.csv"):
+
+        # if we're calling this multiple times, basically create
+        # a new json struct.
+        self.lookups = {}
+
+        lookupReader = csv.reader(open(lookupFilename, newline=""), delimiter=",", quotechar='"')
+        i = 0
+        for row in lookupReader:
+            i = i + 1
+            if len(row) == 2:
+                # print(row[0],row[1])
+                self.lookups[row[0]] = row[1]
+            else:
+                print("huh:", row)
+
+        print("Loaded {} lookups".format(i))
+
+    def WriteLookupWorksheet(self, workbook, formats, startRow=0, startCol=0):
+
+        myRow = startRow
+        myColumn = startCol
+
+        worksheet = workbook.add_worksheet("Lookups")
+
+        keyName = "Lookup Key"
+        ciKey = common_xls_formats.ColumnInfo(worksheet, keyName, myColumn, 1, 1, 100)
+        ciKey.columnWrite(myRow, myColumn, keyName, "text", formats.headerFormat())
+
+        valueName = "Lookup Value"
+        ciValue = common_xls_formats.ColumnInfo(
+            worksheet, valueName, myColumn + 1, 1, 1, 100
+        )
+        ciValue.columnWrite(
+            myRow, myColumn + 1, valueName, "text", formats.headerFormat(), True
+        )
+
+        myRow = myRow + 1
+        myKeys = self.lookups.keys()
+        for k in sorted(myKeys):
+            v = self.lookups[k]
+            ciKey.columnWrite(myRow, myColumn, k, "text", formats.textFormat(myRow))
+            ciValue.columnWrite(myRow, myColumn + 1, v, "text", formats.textFormat(myRow))
+            myRow = myRow + 1
+
+        ciKey.columnSetSize(1.4)
+        ciValue.columnSetSize(1.4)
+
+    def Lookups(self):
+
+        if hasattr(self,"lookups") and isinstance(self.lookups,dict):
+            return self.lookups
+
+        return None
 
 if __name__ == "__main__":
 
-    inFilename = "portfolio_value.csv"
-    outFilename = "portfolio_value.xlsx"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input","-i",help="Input CSV File",default="portfolio_value.csv")
+    parser.add_argument("--output","-o",help="Output XLSX File",default="portfolio_value.xlsx")
+    parser.add_argument("--lookup","-l",help="File containing lookups for translations",default="lookup.csv")
+    args = parser.parse_args()
 
-    i = 0
-    for i in range(1, len(sys.argv)):
+    # print(args)
 
-        if i == 1:
-            inFilename = sys.argv[i]
-        elif i == 2:
-            outFilename = sys.argv[i]
-        else:
-            print("Ignoring extra arguments", sys.argv[i])
-
-    workbook = xlsxwriter.Workbook(outFilename)
+    workbook = xlsxwriter.Workbook(args.output)
     formats = common_xls_formats.XLSFormats(workbook, 5)
 
-    pv = PortfolioValue(inFilename)
-    pv.WriteValues(workbook, formats)
+    # load up the lookup table
+    pv = PortfolioValue(args.input,args.lookup)
+    pv.WriteValuesWorksheet(workbook, formats)
+    pv.WriteLookupWorksheet(workbook, formats)
+    print(str(pv))
 
     workbook.close()
