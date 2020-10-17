@@ -11,8 +11,11 @@ import datetime
 import time
 import numpy
 import calendar
+import portfoliovalue
+import argparse
+import stock_cache
 
-
+# A single transaction record
 class Transaction:
     def __init__(self, entry=None):
         # self.name = ""
@@ -96,7 +99,7 @@ class Transaction:
 
         return self.amount
 
-
+# A set of transactions records
 class Transactions:
     def __init__(self, workbook, formats):
 
@@ -327,13 +330,13 @@ class Transactions:
             # print("column:",myCol,",",str(ci))
             # myWorksheet.set_column(ci.columnNumber, ci.columnNumber, ci.columnSize(1.3))
 
-    def getTransactions(self, filterFunc, *args):
+    def getTransactions(self, filterFunc=None, fArgs=None):
         #
         results = []
         for t in self.transactions:
             if filterFunc != None:
-                if filterFunc(t, args) == True:
-                    print("match:", t)
+                if filterFunc(t, fArgs) == True:
+                    # print("match:", t)
                     p = copy.deepcopy(t)
                     # p = t.deepcopy(dict)
                     results.append(p)
@@ -350,7 +353,7 @@ class Transactions:
         #  These are the types of transactions that are needed to fill out
         #  the dividend sheet
         # tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
-        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
+        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income","Long-term Capital Gain","Short-term Capital Gain"]
 
         pickList = dict()
         pickList["type"] = tTypes
@@ -533,7 +536,7 @@ class Transactions:
         colName = xlsxwriter.utility.xl_col_to_name(startColumn+1)
         myWorksheet.insert_chart( colName + str( startRow + 2 ), myChart)
 
-
+# Known tranaction tags
 def TransactionJsonTags():
     return [
         "date",
@@ -550,7 +553,7 @@ def TransactionJsonTags():
         "month",
     ]
 
-
+# Known transaction headers
 def TransactionHeaders():
     return [
         "Date",
@@ -567,7 +570,7 @@ def TransactionHeaders():
         "Month",
     ]
 
-
+# Get a tag
 def returnTag(hdr):
     headers = TransactionHeaders()
     tags = TransactionJsonTags()
@@ -583,7 +586,7 @@ def returnTag(hdr):
 
     return tags[idx]
 
-
+# for picking transactions by symbol
 def pickSymbol(trans, fArgs):
     mySymbol = trans.get_value("symbol")
     # print(fArgs,mySymbol)
@@ -605,7 +608,10 @@ def pickSymbol(trans, fArgs):
 def pickByFields(trans, fieldList):
 
     if not isinstance(fieldList, dict):
-        return True
+        print("WARNING:  fieldList {} is not dict".format(fieldList))
+        return False
+    # else:
+    #    print("{}:{}".format(trans,fieldList))
 
     for k in fieldList.keys():
         v = fieldList[k]
@@ -642,14 +648,11 @@ def pickByFields(trans, fieldList):
                     return False
 
         elif isinstance(v, list):
-            foundIt = False
-            for l in v:
-                if trans.get_value(k) == l:
-                    foundIt = True
-                    break  # for
-
-            if foundIt == False:  # no matching in list
+            # print("checking list {} for {}".format(v,trans.get_value(k)))
+            if not trans.get_value(k) in v:
+                # print("didn't find it")
                 return False
+
 
         elif trans.get_value(k) != v:
             return False
@@ -716,35 +719,92 @@ def monthdelta(date, delta):
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input","-i",help="Input CSV File",default="transactions.csv")
+    parser.add_argument("--output","-o",help="Output XLSX File",default="transactions.xlsx")
+    parser.add_argument("--lookup","-l",help="File containing lookups for translations",default="lookup.csv")
+    args = parser.parse_args()
+
     lookUps = dict()
-    transactions = []
-    inFilename = "transactions.csv"
-    outFilename = "transactions.xlsx"
+    pv = portfoliovalue.PortfolioValue(None,args.lookup)
+    # transactions = []
 
-    i = 0
-    for i in range(1, len(sys.argv)):
-
-        if i == 1:
-            inFilename = sys.argv[i]
-        elif i == 2:
-            outFilename = sys.argv[i]
-        else:
-            print("Ignoring extra arguments", sys.argv[i])
-
-    workbook = xlsxwriter.Workbook(outFilename)
+    workbook = xlsxwriter.Workbook(args.output)
     formats = common_xls_formats.XLSFormats(workbook)
     T = Transactions(workbook, formats)
-    T.loadTransactions(inFilename, lookUps)
+    T.loadTransactions(args.input, pv.lookups)
     T.writeTransactions(0, 0)
 
-    myWorksheet = workbook.add_worksheet("APPLE")
-    T.writeTransactions(2, 2, myWorksheet, pickSymbol, "AAPL")
+    # This section of code was used to do a 1 time load of the transaction records
+    # for the mutaul funds in the THD 401k.
+    hd401k = {}
+    hd401k["type"] = [ "Buy", "Sell" ]
+    hd401k["symbol"] = ["HDINT", "HDLCAP", "HD2030", "HDSCG", "HDSCV", "HDLCG", "HDBAL", "HDSCG", "HDMCV", "HDIEI", "HDMCI"]
+    hd401k["months"] = "37"
 
-    print("Getting apple transactions")
-    arg = ("AAPL", "01/01/2018")
-    aaplTrans = T.getTransactions(pickByDate, "AAPL", "01/01/2018")
-    print(len(aaplTrans))
+    myWorksheet = workbook.add_worksheet("HD 401k")
+    T.writeTransactions(0, 0, myWorksheet, pickByFields, hd401k)
 
-    print("Building Dividend Sheet")
-    T.getDividends()
+    hd401kTrans = T.getTransactions(pickByFields,hd401k)
+
+    # hd401kQuotes = []
+    for h in hd401kTrans:
+        if isinstance(h.info,dict):
+            desc = h.info.get("description","")
+            parts = desc.split("@")
+            if len(parts) != 2:
+                print("WARNING: Bad description")
+                continue
+
+            quote = parts[1].lstrip()
+            print("{}[{}]".format(h.get_value("symbol"),quote))
+            h.set_value("quote",quote)
+            # print(h)
+            # hd401kQuotes.append(h.info)
+
+        else:
+            print("wtw?",h)
+            sys.exit(-1)
+        # print(h)
+
+    cache = stock_cache.StockCache()
+    for t in hd401kTrans:
+        tDate = t.getTimeTime()
+        jDate = cache.jDateFromTime(tDate)
+        ajDate = cache.adjustForHolidaysAndWeekends(jDate)
+        if ajDate != jDate:
+            print("Adjusting jDate {} to {}",jDate,ajDate)
+            jDate = ajDate
+
+        resp = cache.fundsDataRead(t.get_value("symbol"),jDate)
+        if resp == None:
+            print("{}:{} None".format(t.get_value("symbol"), jDate))
+            dataRec = {}
+            dataRec["transaction"] = t.info
+            print("dataRec:{}".format(dataRec))
+            cache.fundsDataSave(t.get_value("symbol"),jDate,dataRec)
+            # sys.exit(-1)
+        else:
+            print("{}:{} {}".format(t.get_value("symbol"), jDate,resp))
+            if isinstance(resp,dict):
+                dataRec = resp.get("transaction")
+                revision = resp.get("_rev")
+                if dataRec == None:
+                    resp["transaction"] = t.info
+                    cache.fundsDataSave(t.get_value("symbol"), jDate, resp, revision)
+                else:
+                    print("Already in funds database")
+
+    # cache = stock_cache.StockCache()
+    # cache.LoadCacheFromJson("transaction",hd401kQuotes)
+    # print("Getting apple transactions")
+    # arg = ("AAPL", "01/01/2018")
+    # aaplTrans = T.getTransactions(pickByDate, "AAPL", "01/01/2018")
+    # print(len(aaplTrans))
+    # for a in aaplTrans:
+    #     print(a)
+
+    # print("Building Dividend Sheet")
+    # T.getDividends()
     workbook.close()
