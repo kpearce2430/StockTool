@@ -18,7 +18,10 @@ import transaction
 import urllib3
 import datetime
 import common_xls_formats
+import argparse
+import stock_cache
 
+"""
 
 def LoadLookup(name, lookup):
     lookupReader = csv.reader(open(name, newline=""), delimiter=",", quotechar='"')
@@ -59,6 +62,8 @@ def WriteLookupWorkSheet(lookups, workbook, formats, startRow=0, startCol=0):
 
     ciKey.columnSetSize(1.4)
     ciValue.columnSetSize(1.4)
+
+"""
 
 
 def printData(labelData, ticker, formats, row=0, col=0):
@@ -205,7 +210,9 @@ def iexDataSheet(worksheet, iexData, data_type, symbols, formats):
                     # print(ci.name,":",tsDt)
                     ci.columnWrite(myRow, myColumn, tsDt, "timestamp", qd.format(myRow))
                 else:
-                    print("Error: Field ", qd.tag, " has no timestime value:", dataElement)
+                    print(
+                        "Error: Field ", qd.tag, " has no timestime value:", dataElement
+                    )
                     ci.columnWrite(
                         myRow, myColumn, dataElement, "text", qd.format(myRow)
                     )
@@ -227,45 +234,58 @@ if __name__ == "__main__":
     #
     # prepare the input csv and excel worksheet file names.
     #
-    inFilename = "transactions.csv"
-    outFilename = "stock_analysis.xlsx"
-    lookupFilename = "lookup.csv"
-    portfolioFilename = "portfolio_value.csv"
+    # inFilename = "transactions.csv"
+    # outFilename = "stock_analysis.xlsx"
+    # lookupFilename = "lookup.csv"
+    # portfolioFilename = "portfolio_value.csv"
 
-    i = 0
-    for i in range(1, len(sys.argv)):
-
-        if i == 1:
-            inFilename = sys.argv[i]
-        elif i == 2:
-            outFilename = sys.argv[i]
-        elif i == 3:
-            lookupFilename = sys.argv[i]
-        elif i == 4:
-            portfolioFilename = sys.argv[i]
-        else:
-            print("Ignoring extra arguments", sys.argv[i])
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--input", "-i", help="Input CSV File", default="transactions.csv"
+    )
+    parser.add_argument(
+        "--output", "-o", help="Output XLSX File", default="stock_analysis.xlsx"
+    )
+    parser.add_argument(
+        "--lookup",
+        "-l",
+        help="File containing lookups for translations",
+        default="lookup.csv",
+    )
+    parser.add_argument(
+        "--portfolio",
+        "-p",
+        help="Portfolio Values Lookups",
+        default="portfolio_value.csv",
+    )
+    args = parser.parse_args()
 
     # create the workbook
-    workbook = xlsxwriter.Workbook(outFilename)
+    workbook = xlsxwriter.Workbook(args.output)
     formats = common_xls_formats.XLSFormats(workbook)
+    cache = stock_cache.StockCache()
 
     # load up the lookup table
-    lookUps = dict()
-    LoadLookup(lookupFilename, lookUps)
-
-    # load the portfolio value
+    # lookUps = dict()
+    # LoadLookup(lookupFilename, lookUps)
+    #
+    # load the portfolio value and lookups
     #
     # Load the Portfolio Value CSV file.  This provides the last price when it's not available
     # through iexdata.
-    pValues = pv.PortfolioValue(portfolioFilename, lookUps)
-    pValues.WriteValues(workbook, formats)
+    #
+    pValues = pv.PortfolioValue(args.portfolio, args.lookup)
+    pValues.WriteValuesWorksheet(workbook, formats)
+    pValues.WriteLookupWorksheet(workbook, formats)
+    if hasattr(pValues,"created"):
+        cache.LoadCacheFromJson("portfolio_value", pValues.data, date=pValues.created)
+
 
     #
     # read in the transactions and write them to their own worksheet for any ad-hoc analysis.
     #
     T = transaction.Transactions(workbook, formats)
-    T.loadTransactions(inFilename, lookUps)
+    T.loadTransactions(args.input, pValues.Lookups())
     T.writeTransactions(0, 0)
     T.getDividends()
 
@@ -823,7 +843,7 @@ if __name__ == "__main__":
         printEntries(worksheet, entries, formats, 0, 1)
 
     # last things, write out the looks-ups.
-    WriteLookupWorkSheet(lookUps, workbook, formats)
+    # WriteLookupWorkSheet(lookUps, workbook, formats)
     workbook.close()
     print("All done")
     sys.exit(0)
