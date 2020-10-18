@@ -7,7 +7,7 @@ import argparse
 
 import xlsxwriter
 import common_xls_formats
-import sys
+import json
 
 #
 import datetime
@@ -20,8 +20,9 @@ import stock_cache
 class HistoryMatrix:
 
     def __init__(self, wrkbk, fmt, number=36, type="months"):
-        self.symbolMatrix = dict()
-        self.symbols = []
+        self.symbolMatrix = dict() # This is the main data
+        self.symbols = dict() # This dict is used for processing transaction
+        self.unique_accounts = []
         self.unitNumber = number
         self.unitType = type
         self.workbook = wrkbk
@@ -31,7 +32,7 @@ class HistoryMatrix:
     def __str__(self):
         output = "unitNumber[{}] unitType[{}]".format(self.unitNumber, self.unitType)
 
-        for k in sorted(self.symbols):
+        for k in self.symbolMatrix:
             output = k + "\n"
             s = self.symbolMatrix.get(k)
             output = output + "\n" + str(s) + "\n"
@@ -40,18 +41,23 @@ class HistoryMatrix:
 
     def setShares(self, symbol, entry, shares=0.00, price=0.00):
 
+        if symbol == None or symbol == "":
+            print("WARNING: Invalid Symbol [{}] for Entry: {}".format(symbol,entry))
+            raise
+
         hdata = self.symbolMatrix.get(symbol)
         if hdata is None:
             #
             hdata = HistoryRows(symbol, self.unitNumber)
             self.symbolMatrix[symbol] = hdata
-            self.symbols.append(symbol)
+            # self.symbols.append(symbol)
+            # print("Added [{}]".format(symbol))
 
         hdata.addToRow(entry, shares, price)
 
-    def createHistoryMatrix(self,transactions):
-        symbols = dict()
-        unique_accounts = []
+    def CreateHistoryMatrix(self,transactions):
+        self.symbols.clear()
+        self.unique_accounts.clear()
 
         lastDiff = 999
         for row in transactions:
@@ -77,7 +83,7 @@ class HistoryMatrix:
                 if myDiff != lastDiff:
                     mDate = monthsAgo(lastDiff, 0)
                     # print("working on {} for {}".format(lastDiff, str(mDate)))
-                    for key, value in symbols.items():
+                    for key, value in self.symbols.items():
                         if key == None or key == "":
                             print("Warning, bad key:{}:{}:{}".format(mDate, key, value.numShares()))
                             continue
@@ -88,16 +94,17 @@ class HistoryMatrix:
                             #
 
             lastDiff = myDiff
-            bdata.ProcessEntry(e, symbols, unique_accounts)
+            bdata.ProcessEntry(e, self.symbols, self.unique_accounts)
 
         print("working on last {}".format(lastDiff))
-
+        print("symbols:\n{}".format(self.symbols))
+        # print(json.dumps(symbols),sort_keys=True,indent=4)
         # warn of gap for now
         # TODO:  If lastdiff isn't zero,there is a gap in the transactions
         if lastDiff > 0:
             print("WARNING: GAP In Transactions with lastDiff[{}]", lastDiff)
 
-        for key, value in symbols.items():
+        for key, value in self.symbols.items():
             if hasattr(value, "numShares"):
                 # if value.numShares() > 0:
                     #
@@ -120,38 +127,62 @@ class HistoryMatrix:
         else:
             myWorksheet = worksheet
 
+        symbolList = []
+        for s,hRow in self.symbolMatrix.items():
+
+            if s == "FCASH":
+                continue
+
+            if hRow.AnyShares():
+                # print("{}:{}".format(s,hRow))
+                symbolList.append(s)
+
+        symbolList = sorted(symbolList)
+
         row = startRow
         column = startColumn
-
-        # 1 Column is the symbol
-        ci = common_xls_formats.ColumnInfo(myWorksheet, "Symbol", column)
-        self.columns[0] = ci
+        i = 0
+        # 1st Column is the Month
+        ci = common_xls_formats.ColumnInfo(myWorksheet, "Month", column)
+        self.columns[i] = ci
         ci.columnWrite(row, column, "Symbol", "text", self.formats.headerFormat(), True)
         column = column + 1
 
-        # now write out the months
-        for i in range(0, self.unitNumber):
-            colDateT = transaction.monthdelta(datetime.date.today(), -i)
+        # now write out the symbol column header
+        for s in symbolList:
+            ci = common_xls_formats.ColumnInfo(myWorksheet, s, column)
+            self.columns[i] = ci
+            ci.columnWrite( row, column, s, "text", self.formats.headerFormat(), True )
+            column = column + 1
+            i = i + 1
+
+        # now write out the months on each row
+        column = startColumn
+        row = row + 1
+        ci = self.columns[0]
+        # for i in range(0, self.unitNumber):
+        for i in range(self.unitNumber,-1,-1):
+            rowDateT = transaction.monthdelta(datetime.date.today(), -i)
 
             # print(colDateT)
-            if calendar.month_abbr[colDateT.month] == "Jan":
-                colHeader = ( calendar.month_abbr[colDateT.month] + "/" + str(colDateT.year) )
+            if calendar.month_abbr[rowDateT.month] == "Jan":
+                rowHeader = ( calendar.month_abbr[rowDateT.month] + "/" + str(rowDateT.year) )
             else:
-                colHeader = calendar.month_abbr[colDateT.month]
+                rowHeader = calendar.month_abbr[rowDateT.month]
 
-            ci = common_xls_formats.ColumnInfo(myWorksheet, colHeader, column)
-            self.columns[i] = ci
-            ci.columnWrite( row, column, colHeader, "text", self.formats.headerFormat(), True )
-            column = column + 1
+            ci.columnWrite( row, column, rowHeader, "text", self.formats.textFormat(row), True )
+            row = row + 1
 
-        row = row + 1
-        for key in sorted(self.symbols):
-            column = startColumn
-            ci.columnWrite(row, column, key, "text", self.formats.textFormat(row))
+        column = startColumn + 1
+        for i in range(0,len(self.columns)):
+            ci = self.columns[i]
+            print(ci.name)
 
-            column = column + 1
-            hdata = self.symbolMatrix.get(key)
-            for i in range(0, self.unitNumber):
+            row = startRow+1
+            hdata = self.symbolMatrix.get(ci.name)
+            for i in range(self.unitNumber, -1, -1):
+            # for i in range(0, self.unitNumber):
+
                 # print("{}:{}".format(i,hdata.months[i]))
                 if type == "Quantity":
                     fValue = hdata.Quantity(i)
@@ -163,14 +194,28 @@ class HistoryMatrix:
                     print("WARNING: Invalid Type [{}]",type)
                     raise
 
-                ci = self.columns[i]
-                ci.columnWrite(
-                    row, column, fValue, "number", self.formats.numberFormat(row)
-                )
-                column = column + 1
+                if type == "Quantity":
+                    ci.columnWrite( row, column, fValue, "number", self.formats.numberFormat(row) )
+                else:
+                    ci.columnWrite(row, column, fValue, "number", self.formats.currencyFormat(row))
+                row = row + 1
 
+            column = column + 1
             # go
+
+        if type == "Value":
+            # add a total formula
+            ci = common_xls_formats.ColumnInfo(myWorksheet, "Total", column)
+            self.columns[column] = ci
+            row = startRow
+            ci.columnWrite(row, column, "Total", "text", self.formats.headerFormat(), True)
             row = row + 1
+            for i in range(0, self.unitNumber+1):
+                startSumColumn = xlsxwriter.utility.xl_col_to_name(startColumn+1) + str(row+1)
+                endSumColumn = xlsxwriter.utility.xl_col_to_name(column-1) + str(row+1)
+                formula = "=SUM("+ startSumColumn + ":" + endSumColumn + ")"
+                ci.columnWrite(row,column,formula,"formula",formats.currencyFormat(row))
+                row = row + 1
 
         for myCol in self.columns:
             ci = self.columns[myCol]
@@ -223,6 +268,13 @@ class HistoryRows:
         else:
             print( "Error entry {} outside range of months {}".format( entry, len(self.unitQuantity) ) )
             raise
+
+    def AnyShares(self):
+        for i in range(0,len(self.unitQuantity)):
+            if self.unitQuantity[i] > 0.00:
+                return True
+
+        return False
 
     def Quantity(self, entry):
         if entry < len(self.unitQuantity):
@@ -310,7 +362,7 @@ def convertFloat(Value):
 
 def findClosingPrice(ticker, theDate=None):
     sPrice = None
-    if ticker == "CTL" or ticker == "FCASH":
+    if ticker == "CTL" or ticker == "FCASH" or ticker == "MMDA1":
         # TODO: Some bug around Century Link
         return 1.00
 
@@ -471,72 +523,12 @@ if __name__ == "__main__":
 
     # set up the matrix
     hMatrix = HistoryMatrix(workbook, formats, 36, "months" )
-    hMatrix.createHistoryMatrix(T.transactions)
+    hMatrix.CreateHistoryMatrix(T.transactions)
     hMatrix.printHistroyMatrix()
     hMatrix.writeMatrixWorksheet("Quantity")
     hMatrix.writeMatrixWorksheet("Price")
     hMatrix.writeMatrixWorksheet("Value")
     workbook.close()
 
-"""
-    symbols = dict()
-    unique_accounts = []
-
-    lastDiff = 999
-    for row in T.transactions:
-        transDate = row.getDateTimeDate()
-        # print()
-        # print("{} : {} : {} ".format(row.get_value("security"), row.get_value("date"),row.getTimeTime() ))
-        myDiff = monthsDiff(transDate)
-
-        amt = row.getAmount()
-        e = bdata.Entry(
-            row.get_value("date"),
-            row.get_value("type"),
-            row.get_value("security_payee"),
-            row.get_value("security"),
-            row.get_value("description"),
-            row.get_value("shares"),
-            amt,
-            row.get_value("account"),
-        )
-
-        if myDiff < 36:
-
-            if myDiff != lastDiff:
-                mDate = monthsAgo(lastDiff, 0)
-                # print("working on {} for {}".format(lastDiff, str(mDate)))
-                for key, value in symbols.items():
-                    if key == None or key == "":
-                        print("Warning, bad key:{}:{}:{}".format(mDate,key, value.numShares()))
-                        continue
-
-                    if hasattr(value, "numShares"):
-                        print("{}:{}:{}".format(mDate,key, value.numShares()))
-                        hMatrix.setShares(key, lastDiff, value.numShares(),findClosingPrice(key,mDate))
-                        #
-
-
-        lastDiff = myDiff
-        bdata.ProcessEntry(e, symbols, unique_accounts)
-
-    print("working on last {}".format(lastDiff))
-
-    # warn of gap for now
-    # TODO:  If lastdiff isn't zero,there is a gap in the transactions
-    if lastDiff > 0:
-        print("WARNING: GAP In Transactions with lastDiff[{}]",lastDiff)
-
-    for key, value in symbols.items():
-        if hasattr(value, "numShares"):
-            if value.numShares() > 0:
-                #
-                print("{},{}:{}".format(lastDiff,key, mDate))
-                hMatrix.setShares(key, lastDiff, value.numShares(), findClosingPrice(key))
-                # print("{} :${}".format(key, findClosingPrice(key)))
-                #
-       #  else:
-       #      print("{} : {} ".format(key, value))
-"""
 
 

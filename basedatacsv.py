@@ -924,13 +924,22 @@ def ProcessEntry(entry, symbols, accounts):
 
     if isinstance(entry, Entry):
         s = entry.Field("entrySymbol")
+        if s == "Missing" or s == "DEAD" or s == "Symbol":
+            return
+
+        t = entry.Field("entryType")
+        if s == "" and (t == 'Payment/Deposit' or t == 'Interest Income' or 'Miscellaneous Income'):
+            return
 
         # TODO:  Add a way to limit which symbols to look at.
         # if s != "KHC":
         # 	return
+        if s == "" or s == str(None):
+            print("WARNING: Invalid Symbol {} in entry {}".format(s,entry))
+            raise
 
-        if s == str(None) or s == "Missing" or s == "DEAD" or s == "Symbol":
-            return
+
+
 
         t = symbols.get(s)
 
