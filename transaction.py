@@ -15,6 +15,7 @@ import portfoliovalue
 import argparse
 import stock_cache
 
+
 # A single transaction record
 class Transaction:
     def __init__(self, entry=None):
@@ -92,7 +93,7 @@ class Transaction:
     def getAmount(self):
         if not hasattr(self, "amount"):
 
-            if self.get_value("type") == "Reinvest Dividend" or self.get_value("type") == "Add Shares":
+            if self.get_value("type") == "Reinvest Dividend" or self.get_value("type") == "Add Shares" or self.get_value("type") == "Reinvest Long-term Capital Gain":
                 self.amount = self.get_value("invest_amt")
             else:
                 self.amount = self.get_value("amount")
@@ -353,7 +354,7 @@ class Transactions:
         #  These are the types of transactions that are needed to fill out
         #  the dividend sheet
         # tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
-        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income","Long-term Capital Gain","Short-term Capital Gain"]
+        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income","Long-term Capital Gain","Short-term Capital Gain","Reinvest Long-term Capital Gain"]
 
         pickList = dict()
         pickList["type"] = tTypes
@@ -482,7 +483,7 @@ class Transactions:
         myChart.set_size({"width": 1000, "height": 700})
 
         # colors = [ "#FF9900", "#00FF00","#0000FF"]
-        colors = ["#4DA6FF", "#88FF4B", "#B30059"]
+        colors = ["#4DA6FF", "#88FF4B", "#B30059","#FF9900"]
 
         numSeries = int(monthsAgo / 12)
 
