@@ -95,6 +95,8 @@ class HistoryMatrix:
 
             lastDiff = myDiff
             bdata.ProcessEntry(e, self.symbols, self.unique_accounts)
+            if myDiff <= 0:
+                break;
 
         print("working on last {}".format(lastDiff))
         print("symbols:\n{}".format(self.symbols))
