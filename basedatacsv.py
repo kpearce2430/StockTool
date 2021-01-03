@@ -11,6 +11,8 @@ import stock_cache
 
 # import transaction
 
+buyTransactions = ["Buy", "Add Shares", "Reinvest Dividend", "Reinvest Long-term Capital Gain"]
+
 # * * * * * * * * * * * * * * * *
 class Lot:
     def __init__(self, numSharesToSell=0.00, pricePerShare=0.00, soldDate=None):
@@ -126,7 +128,9 @@ class Entry:
         theEntry["entryPricePerShare"] = 0.00
         theEntry["entryRemainingShares"] = 0.00
 
-        if type == "Buy" or type == "Add Shares" or type == "Reinvest Dividend":
+        #
+        if type in buyTransactions:
+
             numShares = float(shares.replace(",", ""))
             #
             if amount.isnumeric():
@@ -234,24 +238,28 @@ class Entry:
     def netCost(self):
         amt = 0.00
         type = self.entry.get("entryType")
-        if type == "Buy" or type == "Add Shares" or type == "Reinvest Dividend":
+        if type in buyTransactions and self.numShares() > 0:
             amt = abs(self.amount())
             for lot in self.soldLots:
                 amt = amt - lot.proceeds()
 
-        # print("Amount: {}".format(amt))
+        # print("netCost Amount: {}".format(amt))
         return amt
 
     def cost(self):
 
         amt = 0.00
-        type = self.entry.get("entryType")
+        if self.remainingShares() <= 0:
+            return amt
 
-        if type == "Buy" and self.remainingShares() > 0:
+
+        type = self.entry.get("entryType")
+        if type in buyTransactions:
             #
             amt = self.remainingShares() * self.price_per_share()
             # amt = self.amount()
 
+        # print("cost [{}] {}".format(amt,self))
         return amt
 
     def sellShares(self, numSharesToSell=0.00, pricePerShare=0.00):
@@ -396,11 +404,7 @@ class Account:
 
                     for e in self.entries:
 
-                        if (
-                            e.type() == "Reinvest Dividend"
-                            or e.type() == "Buy"
-                            or e.type() == "Add Shares"
-                        ) and e.remainingShares() > 0.00:
+                        if e.type() in buyTransactions and e.remainingShares() > 0.00:
                             # print("Remaining:", e.remainingShares())
                             sharesToSell = e.sellShares(sharesToSell, pps)
                             #
@@ -433,6 +437,8 @@ class Account:
                     e.splitShares(float(oldShares), float(newShares))
 
             elif myEntry.type() == "Remove Shares":
+
+                # print("Removing Shares: {}".format(myEntry))
                 sharesToRemove = abs(myEntry.shares())
                 #
                 #
@@ -469,11 +475,7 @@ class Account:
             raise ("ERROR: entry is not an Entry")
             return False
 
-        if (
-            myEntry.type() == "Buy"
-            or myEntry.type() == "Add Shares"
-            or myEntry.type() == "Reinvest Dividend"
-        ) and self.numShares() > self.totalPending():
+        if myEntry.type() in buyTransactions and self.numShares() > self.totalPending():
             self.clearPending()
 
         return True
@@ -523,11 +525,10 @@ class Account:
     def cost(self):
         total = 0.00
         for e in self.entries:
-            type = e.type()
-            if type == "Buy":
-                if e.numShares() > 0:
-                    total = total + e.cost()
+            if e.type() in buyTransactions and e.numShares() > 0:
+                total = total + e.cost()
 
+        # print("acct: {}  cost: {}".format(self.name,round(total,2)))
         return round(total, 2)
 
     def netCost(self):
