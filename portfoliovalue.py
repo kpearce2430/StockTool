@@ -1,12 +1,13 @@
 #
 # Copyright (c) 2018 Pearce Software Solutions. All rights reserved.
 #
-import sys
+# import sys
 import csv
 import xlsxwriter
 import common_xls_formats
 import argparse
 import datetime
+import stock_cache
 
 #
 # This class loads the portfolio value output from Quicken as well as
@@ -345,11 +346,16 @@ class PortfolioValue:
 
 if __name__ == "__main__":
 
+    cache = stock_cache.StockCache()
+
+
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--input","-i",help="Input CSV File",default="portfolio_value.csv")
     parser.add_argument("--output","-o",help="Output XLSX File",default="portfolio_value.xlsx")
     parser.add_argument("--lookup","-l",help="File containing lookups for translations",default="lookup.csv")
     args = parser.parse_args()
+
 
     # print(args)
 
@@ -360,6 +366,10 @@ if __name__ == "__main__":
     pv = PortfolioValue(args.input,args.lookup)
     pv.WriteValuesWorksheet(workbook, formats)
     pv.WriteLookupWorksheet(workbook, formats)
+
+    if hasattr(pv,"created") and cache.isCouchDBUp() != None:
+        cache.LoadCacheFromJson("portfolio_value", pv.data, date=pv.created)
+
     print(str(pv))
 
     workbook.close()
