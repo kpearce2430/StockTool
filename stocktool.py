@@ -21,50 +21,6 @@ import common_xls_formats
 import argparse
 import stock_cache
 
-"""
-
-def LoadLookup(name, lookup):
-    lookupReader = csv.reader(open(name, newline=""), delimiter=",", quotechar='"')
-    for row in lookupReader:
-        if len(row) == 2:
-            # print(row[0],row[1])
-            lookup[row[0]] = row[1]
-        else:
-            print("huh:", row)
-
-
-def WriteLookupWorkSheet(lookups, workbook, formats, startRow=0, startCol=0):
-
-    myRow = startRow
-    myColumn = startCol
-
-    worksheet = workbook.add_worksheet("Lookups")
-
-    keyName = "Lookup Key"
-    ciKey = common_xls_formats.ColumnInfo(worksheet, keyName, myColumn, 1, 1, 100)
-    ciKey.columnWrite(myRow, myColumn, keyName, "text", formats.headerFormat())
-
-    valueName = "Lookup Value"
-    ciValue = common_xls_formats.ColumnInfo(
-        worksheet, valueName, myColumn + 1, 1, 1, 100
-    )
-    ciValue.columnWrite(
-        myRow, myColumn + 1, valueName, "text", formats.headerFormat(), True
-    )
-
-    myRow = myRow + 1
-    myKeys = lookups.keys()
-    for k in myKeys:
-        v = lookups[k]
-        ciKey.columnWrite(myRow, myColumn, k, "text", formats.textFormat(myRow))
-        ciValue.columnWrite(myRow, myColumn + 1, v, "text", formats.textFormat(myRow))
-        myRow = myRow + 1
-
-    ciKey.columnSetSize(1.4)
-    ciValue.columnSetSize(1.4)
-
-"""
-
 
 def printData(labelData, ticker, formats, row=0, col=0):
     myRow = row
@@ -265,11 +221,6 @@ if __name__ == "__main__":
     formats = common_xls_formats.XLSFormats(workbook)
     cache = stock_cache.StockCache()
 
-    # load up the lookup table
-    # lookUps = dict()
-    # LoadLookup(lookupFilename, lookUps)
-    #
-    # load the portfolio value and lookups
     #
     # Load the Portfolio Value CSV file.  This provides the last price when it's not available
     # through iexdata.
@@ -287,7 +238,7 @@ if __name__ == "__main__":
     T = transaction.Transactions(workbook, formats)
     T.loadTransactions(args.input, pValues.Lookups())
     T.writeTransactions(0, 0)
-    T.getDividends()
+    T.getDividends(48)
 
     translist = T.transactions
 
@@ -297,7 +248,7 @@ if __name__ == "__main__":
     for row in translist:
         # add row to the master list
         #
-        # if row.get_value("symbol") != "FCNTX":
+        # if row.get_value("symbol") != "HD":
         #    continue
         #
         # if row.get_value("account") != "Ameritrade IRA":
