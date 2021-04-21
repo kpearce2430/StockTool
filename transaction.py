@@ -111,6 +111,7 @@ class Transactions:
         self.headers = []
         self.transColumns = {}  # for ColumnInfo class
         self.divColumns = {}  # for Dividend sheet
+        self.dividendData = {}
 
     def loadTransactions(self, infilename, lookups):
 
@@ -375,7 +376,7 @@ class Transactions:
 
         # Need a list of the symbols
         symbolList = []
-        dividendData = {}
+        self.dividendData.clear()
 
         # Dont change this value:
         endDate = datetime.datetime.today()
@@ -387,13 +388,13 @@ class Transactions:
             except ValueError:
                 symbolList.append(sym)
 
-            sDiv = dividendData.get(sym)
+            sDiv = self.dividendData.get(sym)
             if sDiv == None:
                 sDiv = {}
                 sDiv["symbol"] = sym
                 sDiv["dividends"] = numpy.zeros((monthsAgo + 1))
                 divSheet = sDiv["dividends"]
-                dividendData[sym] = sDiv
+                self.dividendData[sym] = sDiv
             else:
                 divSheet = sDiv["dividends"]
 
@@ -449,7 +450,7 @@ class Transactions:
                 myRow, myCol, s, "text", self.formats.textFormat(myRow), True
             )
             myCol += 1
-            sDiv = dividendData[s]
+            sDiv = self.dividendData[s]
             mDivs = sDiv["dividends"]
             for i in range(0, len(mDivs)):
                 ci.columnWrite(
@@ -536,6 +537,16 @@ class Transactions:
         # Insert the chart into the worksheet.
         colName = xlsxwriter.utility.xl_col_to_name(startColumn+1)
         myWorksheet.insert_chart( colName + str( startRow + 2 ), myChart)
+
+    def getTickerDividends(self,ticker):
+        # print("Ticker:{}".format(ticker))
+        # print("DividendData:{}".format(self.dividendData))
+        # print("Ticker Data:{}".format(self.dividendData.get(ticker)))
+        # exit(-1)
+        # data = self.dividendData.get(ticker)
+        # print(">>{}:{}".format(ticker,data))
+        # print(self.dividendData.get(ticker)
+        return self.dividendData.get(ticker)
 
 # Known tranaction tags
 def TransactionJsonTags():
