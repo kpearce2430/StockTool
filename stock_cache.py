@@ -206,7 +206,7 @@ class StockCache:
 
 
 
-    def iexStockHistoryGet(self, ticker, types="chart&range=5y", token=None):
+    def iexStockHistoryGet(self, ticker, types="chart&range=1y", token=None):
         # def GetIEXStockHistory(ticker, types="chart&range=5y", token=None):
 
         if len(ticker) > 4:
@@ -215,8 +215,9 @@ class StockCache:
 
         if hasattr(self, "token") == False:
             self.token = os.getenv("TOKEN", "junk")
+            print("Token:{}".format(self.token))
 
-        #  example'https://cloud.iexapis.com/v1/stock/HD/batch?types=chart&range=5y&token=<blah>
+        #  example'https://cloud.iexapis.com/v1/stock/HD/batch?types=chart&range=1y&token=<blah>
         url = (
             "https://cloud.iexapis.com/v1/stock/"
             + ticker.lower()
@@ -453,7 +454,7 @@ class StockCache:
         else:  # Not today,
 
             #  Let' see if it's in the quote data
-            print("looking at history")
+            # print("looking at history")
             response = self.historyDataRead(ticker, jDate)
 
             if isinstance(response,dict):
@@ -480,7 +481,7 @@ class StockCache:
                     return response
 
             # Nothing found in history database, let's check the history.
-            print("Checking Quote Data")
+            # print("Checking Quote Data")
             response = self.quoteDataRead(ticker, jDate)
 
             if isinstance(response,dict):
@@ -696,16 +697,17 @@ if __name__ == "__main__":
 
     data = cache.couchFindByPartition("HDBAL","funds",selectorData)
     print(data)
-    exit(0)
-    stocks = ["JNJ", "AAPL", "hd"]
+    # exit(0)
+    stocks = ["JNJ", "AAPL", "hd", "CTL"]
     for s in stocks:
         print("No Arg {}:{}".format(s, cache.StockLookup(s)))
     #
     # stocks.append("JUNK")
 
-    stocks = ["CSX", "AAPL"]
+    # stocks = ["CSX", "AAPL", "BMY"]
+    stocks = ["CTL"]
     # jDate = "2018090"  # Known Saturday
-    mDate = datetime.date(2020,9,30)
+    mDate = datetime.date(2020,10,30)
     for s in stocks:
         # print("jul_date {}:{}".format(s, cache.StockLookup(s, jul_date=jDate)))
         print("mDate {}:{}".format(mDate, cache.StockLookup(s, time=mDate.timetuple())))
