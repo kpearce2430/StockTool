@@ -19,7 +19,7 @@ import stock_cache
 #
 class HistoryMatrix:
 
-    def __init__(self, wrkbk, fmt, number=36, type="months"):
+    def __init__(self, wrkbk, fmt, cache, number=36, type="months"):
         self.symbolMatrix = dict() # This is the main data
         self.symbols = dict() # This dict is used for processing transaction
         self.unique_accounts = []
@@ -28,16 +28,33 @@ class HistoryMatrix:
         self.workbook = wrkbk
         self.formats = fmt
         self.columns = {}  # for ColumnInfo class
+        self.cache = cache
 
     def __str__(self):
         output = "unitNumber[{}] unitType[{}]".format(self.unitNumber, self.unitType)
 
         for k in self.symbolMatrix:
-            output = k + "\n"
+            output = output + "\n" + k + "\n"
             s = self.symbolMatrix.get(k)
             output = output + "\n" + str(s) + "\n"
 
         return output
+
+    def getHistoryRow(self,symbol = None):
+
+        if symbol == None or symbol == "":
+            print("WARNING: Invalid Symbol [{}] for Entry: {}".format(symbol,entry))
+            raise
+        else:
+            print("Symbol:{}".format(symbol))
+
+
+        result = self.symbolMatrix.get(symbol)
+        if result == None:
+            print("Missing result")
+            raise
+
+        return result
 
     def setShares(self, symbol, entry, shares=0.00, price=0.00):
 
@@ -59,7 +76,7 @@ class HistoryMatrix:
         self.symbols.clear()
         self.unique_accounts.clear()
 
-        lastDiff = 999
+        lastDiff = 9999
         for row in transactions:
             transDate = row.getDateTimeDate()
             # print()
@@ -89,8 +106,8 @@ class HistoryMatrix:
                             continue
 
                         if hasattr(value, "numShares"):
-                            print("{}:{}:{}".format(mDate, key, value.numShares()))
-                            hMatrix.setShares(key, lastDiff, value.numShares(), findClosingPrice(key, mDate))
+                            # print("{}:{}:{}".format(mDate, key, value.numShares()))
+                            self.setShares(key, lastDiff, value.numShares(), findClosingPrice(key, self.cache, mDate))
                             #
 
             lastDiff = myDiff
@@ -110,14 +127,14 @@ class HistoryMatrix:
             if hasattr(value, "numShares"):
                 # if value.numShares() > 0:
                     #
-                    print("{},{}:{}".format(lastDiff, key, mDate))
-                    hMatrix.setShares(key, lastDiff, value.numShares(), findClosingPrice(key))
+                    # print("{},{}:{}".format(lastDiff, key, mDate))
+                    self.setShares(key, lastDiff, value.numShares(), findClosingPrice(key,self.cache))
                     # print("{} :${}".format(key, findClosingPrice(key)))
                     #
         #  else:
         #      print("{} : {} ".format(key, value))
 
-    def printHistroyMatrix(self):
+    def printHistoryMatrix(self):
         print(str(self))
 
     def writeMatrixWorksheet(self, type = "Quantity", startRow=0, startColumn=0, worksheet=None):
@@ -172,7 +189,7 @@ class HistoryMatrix:
             else:
                 rowHeader = calendar.month_abbr[rowDateT.month]
 
-            ci.columnWrite( row, column, rowHeader, "text", self.formats.textFormat(row), True )
+            ci.columnWrite( row, column, rowHeader, "text", self.formats.textFormat(row), True)
             row = row + 1
 
         column = startColumn + 1
@@ -182,6 +199,9 @@ class HistoryMatrix:
 
             row = startRow+1
             hdata = self.symbolMatrix.get(ci.name)
+            if hdata == None:
+                print("ERROR: No history data for {}".format(ci.name))
+
             for i in range(self.unitNumber, -1, -1):
             # for i in range(0, self.unitNumber):
 
@@ -216,7 +236,7 @@ class HistoryMatrix:
                 startSumColumn = xlsxwriter.utility.xl_col_to_name(startColumn+1) + str(row+1)
                 endSumColumn = xlsxwriter.utility.xl_col_to_name(column-1) + str(row+1)
                 formula = "=SUM("+ startSumColumn + ":" + endSumColumn + ")"
-                ci.columnWrite(row,column,formula,"formula",formats.currencyFormat(row))
+                ci.columnWrite(row,column,formula,"formula",self.formats.currencyFormat(row))
                 row = row + 1
 
         for myCol in self.columns:
@@ -362,8 +382,12 @@ def convertFloat(Value):
     return Value
 
 
-def findClosingPrice(ticker, theDate=None):
+def findClosingPrice(ticker, cache, theDate=None):
     sPrice = None
+    if cache == None:
+        print("ERROR: Missing cache!")
+        return 0.00
+
     if ticker == "CTL" or ticker == "FCASH" or ticker == "MMDA1":
         # TODO: Some bug around Century Link
         return 1.00
@@ -402,27 +426,27 @@ def findClosingPrice(ticker, theDate=None):
             priceData = cache.MutualFundsLookup(ticker,time=theDate.timetuple())
 
         if isinstance(priceData,dict):
-            print("{} found price data {}".format(ticker,priceData))
+            # print("{} found price data {}".format(ticker,priceData))
             portfolioValue = priceData.get("portfolio_value")
             fundsData = priceData.get("fund_record")
             transData = priceData.get("transaction")
 
             if isinstance(fundsData,dict):
                 sPrice = fundsData.get("close")
-                print("Found price {} in fundsData".format(sPrice))
+                # print("Found price {} in fundsData".format(sPrice))
 
             if sPrice == None and isinstance(portfolioValue,dict):
                 sPrice = portfolioValue.get("quote")
-                print("Found price {} in portfolioValue".format(sPrice))
+                # print("Found price {} in portfolioValue".format(sPrice))
 
             if sPrice == None and isinstance(transData,dict):
                 sPrice = transData.get("quote")
-                print("Found price {} in transaction".format(sPrice))
+                # print("Found price {} in transaction".format(sPrice))
 
-            if theDate  != None:
-                print("{}:{} Hit with sPrice[{}]".format(ticker,cache.jDateFromTime(theDate.timetuple()),sPrice))
-            else:
-                print("{}:Today Hit with sPrice[{}]".format(ticker,sPrice))
+            # if theDate  != None:
+            #     print("{}:{} Hit with sPrice[{}]".format(ticker,cache.jDateFromTime(theDate.timetuple()),sPrice))
+            # else:
+            #     print("{}:Today Hit with sPrice[{}]".format(ticker,sPrice))
 
         elif theDate == None:
             print("WARNING:  No Data for {} for today in cache".format(ticker))
@@ -444,9 +468,9 @@ def findClosingPrice(ticker, theDate=None):
             selectorData["sort"] = selectorSort
             selectorData["limit"] = 5
 
-            print("{}:{}:{}".format(ticker,jDate,selectorData))
+            # print("{}:{}:{}".format(ticker,jDate,selectorData))
             response = cache.couchFindByPartition(ticker,"funds",selectorData)
-            print("response:{}".format(response))
+            # print("response:{}".format(response))
 
             if not isinstance(response,dict):
                 print("ERROR Response form couchFindByPartition")
@@ -460,12 +484,12 @@ def findClosingPrice(ticker, theDate=None):
                 # sys.exit(0)
 
             if len(docs) <= 0:
-                print("No docs found for {} on {}",ticker,jDate)
+                print("WARNING: No docs found for {} on {}".format(ticker,jDate))
                 return 0.00
 
             for d in docs:
                 if not isinstance(d,dict):
-                    print("ERROR Expecing a json blob not {}".format(d))
+                    print("ERROR Expecting a json blob not {}".format(d))
                     raise
 
                 pv = d.get("portfolio_value")
@@ -477,10 +501,10 @@ def findClosingPrice(ticker, theDate=None):
                     tr = d.get("transaction")
                     if isinstance(tr,dict):
                         sPrice = tr.get("quote")
-                        print("transaction quote for {} [{}]".format(ticker,sPrice))
+                        # print("transaction quote for {} [{}]".format(ticker,sPrice))
 
                 if sPrice == None:
-                    print("WARNING: No price found for {} on {}",ticker,jDate)
+                    print("WARNING: No price found for {} on {}".format(ticker,jDate))
                 else:
                     break
 
@@ -524,9 +548,9 @@ if __name__ == "__main__":
     T.loadTransactions(args.input, pv.lookups)
 
     # set up the matrix
-    hMatrix = HistoryMatrix(workbook, formats, 36, "months" )
+    hMatrix = HistoryMatrix(workbook, formats, cache, 36, "months" )
     hMatrix.CreateHistoryMatrix(T.transactions)
-    hMatrix.printHistroyMatrix()
+    hMatrix.printHistoryMatrix()
     hMatrix.writeMatrixWorksheet("Quantity")
     hMatrix.writeMatrixWorksheet("Price")
     hMatrix.writeMatrixWorksheet("Value")
