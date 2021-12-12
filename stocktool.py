@@ -960,7 +960,12 @@ if __name__ == "__main__":
         myUrl = "internal: 'Stock Analysis'!A1"
         worksheet.write_url(0, 0, myUrl, None, "Back To Stock Analysis", None)
 
-        historyRow = hMatrix.getHistoryRow(key)
+        try:
+            historyRow = hMatrix.getHistoryRow(key)
+        except Exception as e:
+            print(e)
+            continue
+
         if historyRow != None:
             #
             # print("key:{}:{}".format(key,T.getTickerDividends(key)))

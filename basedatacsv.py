@@ -11,7 +11,8 @@ import stock_cache
 
 # import transaction
 
-buyTransactions = ["Buy", "Add Shares", "Reinvest Dividend", "Reinvest Long-term Capital Gain"]
+buyTransactions = ["Buy", "Add Shares", "Reinvest Dividend", "Reinvest Long-term Capital Gain",
+                   "Reinvest Short-term Capital Gain" ]
 
 # * * * * * * * * * * * * * * * *
 class Lot:

@@ -18,10 +18,9 @@ import stock_cache
 #
 #
 class HistoryMatrix:
-
     def __init__(self, wrkbk, fmt, cache, number=36, type="months"):
-        self.symbolMatrix = dict() # This is the main data
-        self.symbols = dict() # This dict is used for processing transaction
+        self.symbolMatrix = dict()  # This is the main data
+        self.symbols = dict()  # This dict is used for processing transaction
         self.unique_accounts = []
         self.unitNumber = number
         self.unitType = type
@@ -40,14 +39,13 @@ class HistoryMatrix:
 
         return output
 
-    def getHistoryRow(self,symbol = None):
+    def getHistoryRow(self, symbol=None):
 
         if symbol == None or symbol == "":
-            print("WARNING: Invalid Symbol [{}] for Entry: {}".format(symbol,entry))
+            print("WARNING: Invalid Symbol [{}] for Entry: {}".format(symbol, entry))
             raise
-        else:
-            print("Symbol:{}".format(symbol))
-
+        # else:
+        #    print("Symbol:{}".format(symbol))
 
         result = self.symbolMatrix.get(symbol)
         if result == None:
@@ -59,7 +57,7 @@ class HistoryMatrix:
     def setShares(self, symbol, entry, shares=0.00, price=0.00):
 
         if symbol == None or symbol == "":
-            print("WARNING: Invalid Symbol [{}] for Entry: {}".format(symbol,entry))
+            print("WARNING: Invalid Symbol [{}] for Entry: {}".format(symbol, entry))
             raise
 
         hdata = self.symbolMatrix.get(symbol)
@@ -72,7 +70,7 @@ class HistoryMatrix:
 
         hdata.addToRow(entry, shares, price)
 
-    def CreateHistoryMatrix(self,transactions):
+    def CreateHistoryMatrix(self, transactions):
         self.symbols.clear()
         self.unique_accounts.clear()
 
@@ -95,49 +93,61 @@ class HistoryMatrix:
                 row.get_value("account"),
             )
 
-            if myDiff < 36:
+            #
+            if myDiff < self.unitNumber:
+                # Transactions have reached the less than the number of months we're interested in (i.e. 36)
 
                 if myDiff != lastDiff:
                     mDate = monthsAgo(lastDiff, 0)
                     # print("working on {} for {}".format(lastDiff, str(mDate)))
                     for key, value in self.symbols.items():
                         if key == None or key == "":
-                            print("Warning, bad key:{}:{}:{}".format(mDate, key, value.numShares()))
+                            # print("Warning, bad key:{}:{}:{}".format(mDate, key, value.numShares()))
                             continue
 
                         if hasattr(value, "numShares"):
                             # print("{}:{}:{}".format(mDate, key, value.numShares()))
-                            self.setShares(key, lastDiff, value.numShares(), findClosingPrice(key, self.cache, mDate))
+                            self.setShares(
+                                key,
+                                lastDiff,
+                                value.numShares(),
+                                findClosingPrice(key, self.cache, mDate),
+                            )
                             #
 
             lastDiff = myDiff
             bdata.ProcessEntry(e, self.symbols, self.unique_accounts)
-            if myDiff <= 0:
-                break;
+            if myDiff < 0:
+                break
 
-        print("working on last {}".format(lastDiff))
-        print("symbols:\n{}".format(self.symbols))
+        # print("working on last {}".format(lastDiff))
+        # print("symbols:\n{}".format(self.symbols))
         # print(json.dumps(symbols),sort_keys=True,indent=4)
         # warn of gap for now
         # TODO:  If lastdiff isn't zero,there is a gap in the transactions
         if lastDiff > 0:
             print("WARNING: GAP In Transactions with lastDiff[{}]", lastDiff)
+            raise
 
         for key, value in self.symbols.items():
             if hasattr(value, "numShares"):
                 # if value.numShares() > 0:
-                    #
-                    # print("{},{}:{}".format(lastDiff, key, mDate))
-                    self.setShares(key, lastDiff, value.numShares(), findClosingPrice(key,self.cache))
-                    # print("{} :${}".format(key, findClosingPrice(key)))
-                    #
+                #
+                # print("{},{}:{}".format(lastDiff, key, mDate))
+                self.setShares(
+                    key, lastDiff, value.numShares(), findClosingPrice(key, self.cache)
+                )
+                # print("{} :${}".format(key, findClosingPrice(key)))
+                #
         #  else:
         #      print("{} : {} ".format(key, value))
 
     def printHistoryMatrix(self):
         print(str(self))
 
-    def writeMatrixWorksheet(self, type = "Quantity", startRow=0, startColumn=0, worksheet=None):
+    def writeMatrixWorksheet(
+        self, type="Quantity", startRow=0, startColumn=0, worksheet=None
+    ):
 
         if worksheet == None:
             if self.workbook == None:
@@ -147,7 +157,7 @@ class HistoryMatrix:
             myWorksheet = worksheet
 
         symbolList = []
-        for s,hRow in self.symbolMatrix.items():
+        for s, hRow in self.symbolMatrix.items():
 
             if s == "FCASH":
                 continue
@@ -171,7 +181,7 @@ class HistoryMatrix:
         for s in symbolList:
             ci = common_xls_formats.ColumnInfo(myWorksheet, s, column)
             self.columns[i] = ci
-            ci.columnWrite( row, column, s, "text", self.formats.headerFormat(), True )
+            ci.columnWrite(row, column, s, "text", self.formats.headerFormat(), True)
             column = column + 1
             i = i + 1
 
@@ -180,30 +190,34 @@ class HistoryMatrix:
         row = row + 1
         ci = self.columns[0]
         # for i in range(0, self.unitNumber):
-        for i in range(self.unitNumber,-1,-1):
+        for i in range(self.unitNumber, -1, -1):
             rowDateT = transaction.monthdelta(datetime.date.today(), -i)
 
             # print(colDateT)
             if calendar.month_abbr[rowDateT.month] == "Jan":
-                rowHeader = ( calendar.month_abbr[rowDateT.month] + "/" + str(rowDateT.year) )
+                rowHeader = (
+                    calendar.month_abbr[rowDateT.month] + "/" + str(rowDateT.year)
+                )
             else:
                 rowHeader = calendar.month_abbr[rowDateT.month]
 
-            ci.columnWrite( row, column, rowHeader, "text", self.formats.textFormat(row), True)
+            ci.columnWrite(
+                row, column, rowHeader, "text", self.formats.textFormat(row), True
+            )
             row = row + 1
 
         column = startColumn + 1
-        for i in range(0,len(self.columns)):
+        for i in range(0, len(self.columns)):
             ci = self.columns[i]
-            print(ci.name)
+            # print("{}:{}".format(i,ci.name))
 
-            row = startRow+1
+            row = startRow + 1
             hdata = self.symbolMatrix.get(ci.name)
             if hdata == None:
                 print("ERROR: No history data for {}".format(ci.name))
 
             for i in range(self.unitNumber, -1, -1):
-            # for i in range(0, self.unitNumber):
+                # for i in range(0, self.unitNumber):
 
                 # print("{}:{}".format(i,hdata.months[i]))
                 if type == "Quantity":
@@ -213,13 +227,17 @@ class HistoryMatrix:
                 elif type == "Value":
                     fValue = hdata.Value(i)
                 else:
-                    print("WARNING: Invalid Type [{}]",type)
+                    print("WARNING: Invalid Type [{}]", type)
                     raise
 
                 if type == "Quantity":
-                    ci.columnWrite( row, column, fValue, "number", self.formats.numberFormat(row) )
+                    ci.columnWrite(
+                        row, column, fValue, "number", self.formats.numberFormat(row)
+                    )
                 else:
-                    ci.columnWrite(row, column, fValue, "number", self.formats.currencyFormat(row))
+                    ci.columnWrite(
+                        row, column, fValue, "number", self.formats.currencyFormat(row)
+                    )
                 row = row + 1
 
             column = column + 1
@@ -230,13 +248,21 @@ class HistoryMatrix:
             ci = common_xls_formats.ColumnInfo(myWorksheet, "Total", column)
             self.columns[column] = ci
             row = startRow
-            ci.columnWrite(row, column, "Total", "text", self.formats.headerFormat(), True)
+            ci.columnWrite(
+                row, column, "Total", "text", self.formats.headerFormat(), True
+            )
             row = row + 1
-            for i in range(0, self.unitNumber+1):
-                startSumColumn = xlsxwriter.utility.xl_col_to_name(startColumn+1) + str(row+1)
-                endSumColumn = xlsxwriter.utility.xl_col_to_name(column-1) + str(row+1)
-                formula = "=SUM("+ startSumColumn + ":" + endSumColumn + ")"
-                ci.columnWrite(row,column,formula,"formula",self.formats.currencyFormat(row))
+            for i in range(0, self.unitNumber + 1):
+                startSumColumn = xlsxwriter.utility.xl_col_to_name(
+                    startColumn + 1
+                ) + str(row + 1)
+                endSumColumn = xlsxwriter.utility.xl_col_to_name(column - 1) + str(
+                    row + 1
+                )
+                formula = "=SUM(" + startSumColumn + ":" + endSumColumn + ")"
+                ci.columnWrite(
+                    row, column, formula, "formula", self.formats.currencyFormat(row)
+                )
                 row = row + 1
 
         for myCol in self.columns:
@@ -272,7 +298,7 @@ class HistoryRows:
             + "]"
         )
 
-    def addToRow(self, entry = 0, quantity=0.00, price=0.00):
+    def addToRow(self, entry=0, quantity=0.00, price=0.00):
 
         if entry < len(self.unitQuantity):
             if isinstance(quantity, float):
@@ -288,11 +314,15 @@ class HistoryRows:
                 raise
 
         else:
-            print( "Error entry {} outside range of months {}".format( entry, len(self.unitQuantity) ) )
+            print(
+                "ERROR: entry {} outside range of months {}".format(
+                    entry, len(self.unitQuantity)
+                )
+            )
             raise
 
     def AnyShares(self):
-        for i in range(0,len(self.unitQuantity)):
+        for i in range(0, len(self.unitQuantity)):
             if self.unitQuantity[i] > 0.00:
                 return True
 
@@ -302,21 +332,25 @@ class HistoryRows:
         if entry < len(self.unitQuantity):
             return self.unitQuantity[entry]
 
-        print( "ERROR: {} outside range of quantity {}".format(entry,len(self.unitQuantity)))
+        print(
+            "ERROR: {} outside range of quantity {}".format(
+                entry, len(self.unitQuantity)
+            )
+        )
         raise
 
     def Price(self, entry):
         if entry < len(self.unitPrice):
             return self.unitPrice[entry]
 
-        print("ERROR: {} outside range of price {}".format(entry,len(self.unitPrice)))
+        print("ERROR: {} outside range of price {}".format(entry, len(self.unitPrice)))
         raise
 
     def Value(self, entry):
         if entry < len(self.unitQuantity):
             return self.unitQuantity[entry] * self.unitPrice[entry]
 
-        print("ERROR: {} outside range of price {}".format(entry,len(self.unitPrice)))
+        print("ERROR: {} outside range of price {}".format(entry, len(self.unitPrice)))
         raise
 
 
@@ -404,7 +438,7 @@ def findClosingPrice(ticker, cache, theDate=None):
             iexQuote = priceData.get("iex_quote")
             if isinstance(iexHistory, dict):
                 # unchanged Close since we have unchanged number of shares
-                sPrice = iexHistory.get("uClose") #
+                sPrice = iexHistory.get("uClose")  #
                 # print("iex_history close[{}]".format(sPrice))
 
             elif isinstance(iexQuote, dict):
@@ -423,23 +457,23 @@ def findClosingPrice(ticker, cache, theDate=None):
             # print("{} for today".format(ticker))
             priceData = cache.MutualFundsLookup(ticker)
         else:
-            priceData = cache.MutualFundsLookup(ticker,time=theDate.timetuple())
+            priceData = cache.MutualFundsLookup(ticker, time=theDate.timetuple())
 
-        if isinstance(priceData,dict):
+        if isinstance(priceData, dict):
             # print("{} found price data {}".format(ticker,priceData))
             portfolioValue = priceData.get("portfolio_value")
             fundsData = priceData.get("fund_record")
             transData = priceData.get("transaction")
 
-            if isinstance(fundsData,dict):
+            if isinstance(fundsData, dict):
                 sPrice = fundsData.get("close")
                 # print("Found price {} in fundsData".format(sPrice))
 
-            if sPrice == None and isinstance(portfolioValue,dict):
+            if sPrice == None and isinstance(portfolioValue, dict):
                 sPrice = portfolioValue.get("quote")
                 # print("Found price {} in portfolioValue".format(sPrice))
 
-            if sPrice == None and isinstance(transData,dict):
+            if sPrice == None and isinstance(transData, dict):
                 sPrice = transData.get("quote")
                 # print("Found price {} in transaction".format(sPrice))
 
@@ -450,15 +484,15 @@ def findClosingPrice(ticker, cache, theDate=None):
 
         elif theDate == None:
             print("WARNING:  No Data for {} for today in cache".format(ticker))
-            sPrice="0.00"
+            sPrice = "0.00"
         else:
-            print("WARNING:  No Data for {} for {} in cache".format(ticker,theDate))
+            print("WARNING:  No Data for {} for {} in cache".format(ticker, theDate))
             jDate = cache.jDateFromTime(theDate.timetuple())
 
             selectorOperator = {}
-            selectorOperator["$lte"] = ticker+":"+jDate
+            selectorOperator["$lte"] = ticker + ":" + jDate
             selectorFields = {}
-            selectorFields ["key"] = selectorOperator
+            selectorFields["key"] = selectorOperator
             selectorData = {}
             selectorData["selector"] = selectorFields
             selectorSortFields = {}
@@ -469,50 +503,49 @@ def findClosingPrice(ticker, cache, theDate=None):
             selectorData["limit"] = 5
 
             # print("{}:{}:{}".format(ticker,jDate,selectorData))
-            response = cache.couchFindByPartition(ticker,"funds",selectorData)
+            response = cache.couchFindByPartition(ticker, "funds", selectorData)
             # print("response:{}".format(response))
 
-            if not isinstance(response,dict):
+            if not isinstance(response, dict):
                 print("ERROR Response form couchFindByPartition")
                 raise
                 # sys.exit(0)
 
             docs = response.get("docs")
-            if not isinstance(docs,list):
-                print("ERROR: Expected docs as a list and got {}",docs)
+            if not isinstance(docs, list):
+                print("ERROR: Expected docs as a list and got {}", docs)
                 raise
                 # sys.exit(0)
 
             if len(docs) <= 0:
-                print("WARNING: No docs found for {} on {}".format(ticker,jDate))
+                print("WARNING: No docs found for {} on {}".format(ticker, jDate))
                 return 0.00
 
             for d in docs:
-                if not isinstance(d,dict):
+                if not isinstance(d, dict):
                     print("ERROR Expecting a json blob not {}".format(d))
                     raise
 
                 pv = d.get("portfolio_value")
-                if isinstance(pv,dict):
+                if isinstance(pv, dict):
                     sPrice = pv.get("quote")
-                    print("portfolio value quote for {} [{}]".format(ticker,sPrice))
+                    print("portfolio value quote for {} [{}]".format(ticker, sPrice))
 
                 if sPrice == None:
                     tr = d.get("transaction")
-                    if isinstance(tr,dict):
+                    if isinstance(tr, dict):
                         sPrice = tr.get("quote")
                         # print("transaction quote for {} [{}]".format(ticker,sPrice))
 
                 if sPrice == None:
-                    print("WARNING: No price found for {} on {}".format(ticker,jDate))
+                    print("WARNING: No price found for {} on {}".format(ticker, jDate))
                 else:
                     break
-
 
     # print("sPrince[{}]".format(sPrice))
     price = convertFloat(sPrice)
     if price is None:
-        print("WARNING! On {} Price for {} is 'None'".format(theDate,ticker))
+        print("WARNING! On {} Price for {} is 'None'".format(theDate, ticker))
         raise
         # return 0.00
 
@@ -524,13 +557,28 @@ if __name__ == "__main__":
 
     # load the lookups
     parser = argparse.ArgumentParser()
-    parser.add_argument( "--input", "-i", help="Input CSV File", default="transactions.csv" )
-    parser.add_argument( "--output", "-o", help="Output XLSX File", default="stock_history.xlsx" )
-    parser.add_argument( "--lookup", "-l", help="File containing lookups for translations", default="lookup.csv" )
-    parser.add_argument( "--portfolio", "-p", help="Portfolio Values Lookups", default="portfolio_value.csv" )
+    parser.add_argument(
+        "--input", "-i", help="Input CSV File", default="transactions.csv"
+    )
+    parser.add_argument(
+        "--output", "-o", help="Output XLSX File", default="stock_history.xlsx"
+    )
+    parser.add_argument(
+        "--lookup",
+        "-l",
+        help="File containing lookups for translations",
+        default="lookup.csv",
+    )
+    parser.add_argument(
+        "--portfolio",
+        "-p",
+        help="Portfolio Values Lookups",
+        default="portfolio_value.csv",
+    )
     args = parser.parse_args()
 
     import portfoliovalue
+
     pv = portfoliovalue.PortfolioValue(args.portfolio, args.lookup)
 
     # intialize the transactions
@@ -546,15 +594,14 @@ if __name__ == "__main__":
     # get the transacations
     T = transaction.Transactions(workbook, formats)
     T.loadTransactions(args.input, pv.lookups)
+    # myTransactions = T.getTransactions(transaction.pickSymbol,"FAGIX");
 
     # set up the matrix
-    hMatrix = HistoryMatrix(workbook, formats, cache, 36, "months" )
+    hMatrix = HistoryMatrix(workbook, formats, cache, 36, "months")
     hMatrix.CreateHistoryMatrix(T.transactions)
+    # hMatrix.CreateHistoryMatrix(myTransactions)
     hMatrix.printHistoryMatrix()
     hMatrix.writeMatrixWorksheet("Quantity")
     hMatrix.writeMatrixWorksheet("Price")
     hMatrix.writeMatrixWorksheet("Value")
     workbook.close()
-
-
-

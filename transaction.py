@@ -55,10 +55,9 @@ class Transaction:
 
     def getTimeTime(self):
         if not hasattr(self, "transTimeTime"):
-            self.transTimeTime = time.strptime(self.getDate(),"%m/%d/%Y")
+            self.transTimeTime = time.strptime(self.getDate(), "%m/%d/%Y")
 
         return self.transTimeTime
-
 
     def getYear(self):
         if not hasattr(self, "year"):
@@ -93,12 +92,16 @@ class Transaction:
     def getAmount(self):
         if not hasattr(self, "amount"):
 
-            if self.get_value("type") == "Reinvest Dividend" or self.get_value("type") == "Add Shares" or self.get_value("type") == "Reinvest Long-term Capital Gain":
+            if self.get_value("type") == "Reinvest Dividend" \
+                    or self.get_value("type") == "Add Shares" \
+                    or self.get_value("type") == "Reinvest Long-term Capital Gain" \
+                    or self.get_value("type") == "Reinvest Short-term Capital Gain":
                 self.amount = self.get_value("invest_amt")
             else:
                 self.amount = self.get_value("amount")
 
         return self.amount
+
 
 # A set of transactions records
 class Transactions:
@@ -194,9 +197,9 @@ class Transactions:
                         row[symbolRow] = value
 
                 if (
-                    self.headers[j] == "Shares"
-                    or self.headers[j] == "Amount"
-                    or self.headers[j] == "Invest Amt"
+                        self.headers[j] == "Shares"
+                        or self.headers[j] == "Amount"
+                        or self.headers[j] == "Invest Amt"
                 ):
                     # Remove the commas
                     row[j] = row[j].replace(",", "")
@@ -301,7 +304,7 @@ class Transactions:
             myCol = myCol + 1
 
     def writeTransactions(
-        self, startRow=0, startColumn=0, worksheet=None, filterFunc=None, fArgs=None
+            self, startRow=0, startColumn=0, worksheet=None, filterFunc=None, fArgs=None
     ):
 
         if worksheet == None:
@@ -355,7 +358,9 @@ class Transactions:
         #  These are the types of transactions that are needed to fill out
         #  the dividend sheet
         # tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
-        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income","Long-term Capital Gain","Short-term Capital Gain","Reinvest Long-term Capital Gain"]
+        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income",
+                  "Long-term Capital Gain", "Short-term Capital Gain",
+                  "Reinvest Long-term Capital Gain", "Reinvest Short-term Capital Gain"]
 
         pickList = dict()
         pickList["type"] = tTypes
@@ -400,7 +405,7 @@ class Transactions:
 
             transDate = m.getDateTimeDate()
             tranMonthsAgo = (endDate.year - transDate.year) * 12 + (
-                endDate.month - transDate.month
+                    endDate.month - transDate.month
             )
 
             divSheet[tranMonthsAgo] += float(m.getAmount())
@@ -428,7 +433,6 @@ class Transactions:
         myCol += 1
 
         for i in range(0, monthsAgo + 1):
-
             colDateT = monthdelta(datetime.date.today(), -i)
 
             colHeader = calendar.month_abbr[
@@ -471,7 +475,7 @@ class Transactions:
             ci = self.divColumns[myCol]
             cName = xlsxwriter.utility.xl_col_to_name(myCol)
             myFormula = (
-                "=SUM(" + cName + str(startRow + 2) + ":" + cName + str(myRow) + ")"
+                    "=SUM(" + cName + str(startRow + 2) + ":" + cName + str(myRow) + ")"
             )
             ci.columnWrite(
                 myRow, myCol, myFormula, "formula", self.formats.accountingFormat(myRow)
@@ -484,7 +488,7 @@ class Transactions:
         myChart.set_size({"width": 1000, "height": 700})
 
         # colors = [ "#FF9900", "#00FF00","#0000FF"]
-        colors = ["#4DA6FF", "#88FF4B", "#B30059","#FF9900"]
+        colors = ["#4DA6FF", "#88FF4B", "#B30059", "#FF9900"]
 
         numSeries = int(monthsAgo / 12)
 
@@ -498,29 +502,29 @@ class Transactions:
             columnEnd = xlsxwriter.utility.xl_col_to_name(seriesStopCol)
 
             myValues = (
-                "="
-                + myWorksheetName
-                + "!$"
-                + columnStart
-                + "$"
-                + str(myRow + 1)
-                + ":$"
-                + columnEnd
-                + "$"
-                + str(myRow + 1)
+                    "="
+                    + myWorksheetName
+                    + "!$"
+                    + columnStart
+                    + "$"
+                    + str(myRow + 1)
+                    + ":$"
+                    + columnEnd
+                    + "$"
+                    + str(myRow + 1)
             )
 
             myColValues = (
-                "="
-                + myWorksheetName
-                + "!$"
-                + columnStart
-                + "$"
-                + str(startRow + 1)
-                + ":$"
-                + columnEnd
-                + "$"
-                + str(startRow + 1)
+                    "="
+                    + myWorksheetName
+                    + "!$"
+                    + columnStart
+                    + "$"
+                    + str(startRow + 1)
+                    + ":$"
+                    + columnEnd
+                    + "$"
+                    + str(startRow + 1)
             )
             # print(myValues)
 
@@ -535,10 +539,10 @@ class Transactions:
             )
 
         # Insert the chart into the worksheet.
-        colName = xlsxwriter.utility.xl_col_to_name(startColumn+1)
-        myWorksheet.insert_chart( colName + str( startRow + 2 ), myChart)
+        colName = xlsxwriter.utility.xl_col_to_name(startColumn + 1)
+        myWorksheet.insert_chart(colName + str(startRow + 2), myChart)
 
-    def getTickerDividends(self,ticker):
+    def getTickerDividends(self, ticker):
         # print("Ticker:{}".format(ticker))
         # print("DividendData:{}".format(self.dividendData))
         # print("Ticker Data:{}".format(self.dividendData.get(ticker)))
@@ -547,6 +551,7 @@ class Transactions:
         # print(">>{}:{}".format(ticker,data))
         # print(self.dividendData.get(ticker)
         return self.dividendData.get(ticker)
+
 
 # Known tranaction tags
 def TransactionJsonTags():
@@ -565,6 +570,7 @@ def TransactionJsonTags():
         "month",
     ]
 
+
 # Known transaction headers
 def TransactionHeaders():
     return [
@@ -582,6 +588,7 @@ def TransactionHeaders():
         "Month",
     ]
 
+
 # Get a tag
 def returnTag(hdr):
     headers = TransactionHeaders()
@@ -596,7 +603,9 @@ def returnTag(hdr):
     if idx >= len(tags):
         print("Error:  Tag length mismatch")
 
+
     return tags[idx]
+
 
 # for picking transactions by symbol
 def pickSymbol(trans, fArgs):
@@ -618,7 +627,6 @@ def pickSymbol(trans, fArgs):
 #  date in the fieldList
 #
 def pickByFields(trans, fieldList):
-
     if not isinstance(fieldList, dict):
         print("WARNING:  fieldList {} is not dict".format(fieldList))
         return False
@@ -674,7 +682,6 @@ def pickByFields(trans, fieldList):
 
 
 def pickByDate(trans, *args):
-
     myArgs = args[0]
     if len(myArgs) < 2:
         print("Nope, need symbol and date:", len(myArgs), ":", myArgs)
@@ -733,13 +740,13 @@ def monthdelta(date, delta):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input","-i",help="Input CSV File",default="transactions.csv")
-    parser.add_argument("--output","-o",help="Output XLSX File",default="transactions.xlsx")
-    parser.add_argument("--lookup","-l",help="File containing lookups for translations",default="lookup.csv")
+    parser.add_argument("--input", "-i", help="Input CSV File", default="transactions.csv")
+    parser.add_argument("--output", "-o", help="Output XLSX File", default="transactions.xlsx")
+    parser.add_argument("--lookup", "-l", help="File containing lookups for translations", default="lookup.csv")
     args = parser.parse_args()
 
     lookUps = dict()
-    pv = portfoliovalue.PortfolioValue(None,args.lookup)
+    pv = portfoliovalue.PortfolioValue(None, args.lookup)
     # transactions = []
 
     workbook = xlsxwriter.Workbook(args.output)
@@ -751,32 +758,33 @@ if __name__ == "__main__":
     # This section of code was used to do a 1 time load of the transaction records
     # for the mutaul funds in the THD 401k.
     hd401k = {}
-    hd401k["type"] = [ "Buy", "Sell" ]
-    hd401k["symbol"] = ["HDINT", "HDLCAP", "HD2030", "HDSCG", "HDSCV", "HDLCG", "HDBAL", "HDSCG", "HDMCV", "HDIEI", "HDMCI"]
+    hd401k["type"] = ["Buy", "Sell"]
+    hd401k["symbol"] = ["HDINT", "HDLCAP", "HD2030", "HDSCG", "HDSCV", "HDLCG", "HDBAL", "HDSCG", "HDMCV", "HDIEI",
+                        "HDMCI"]
     hd401k["months"] = "37"
 
     myWorksheet = workbook.add_worksheet("HD 401k")
     T.writeTransactions(0, 0, myWorksheet, pickByFields, hd401k)
 
-    hd401kTrans = T.getTransactions(pickByFields,hd401k)
+    hd401kTrans = T.getTransactions(pickByFields, hd401k)
 
     # hd401kQuotes = []
     for h in hd401kTrans:
-        if isinstance(h.info,dict):
-            desc = h.info.get("description","")
+        if isinstance(h.info, dict):
+            desc = h.info.get("description", "")
             parts = desc.split("@")
             if len(parts) != 2:
                 print("WARNING: Bad description")
                 continue
 
             quote = parts[1].lstrip()
-            print("{}[{}]".format(h.get_value("symbol"),quote))
-            h.set_value("quote",quote)
+            print("{}[{}]".format(h.get_value("symbol"), quote))
+            h.set_value("quote", quote)
             # print(h)
             # hd401kQuotes.append(h.info)
 
         else:
-            print("wtw?",h)
+            print("wtw?", h)
             sys.exit(-1)
         # print(h)
 
@@ -786,20 +794,20 @@ if __name__ == "__main__":
         jDate = cache.jDateFromTime(tDate)
         ajDate = cache.adjustForHolidaysAndWeekends(jDate)
         if ajDate != jDate:
-            print("Adjusting jDate {} to {}",jDate,ajDate)
+            print("Adjusting jDate {} to {}", jDate, ajDate)
             jDate = ajDate
 
-        resp = cache.fundsDataRead(t.get_value("symbol"),jDate)
+        resp = cache.fundsDataRead(t.get_value("symbol"), jDate)
         if resp == None:
             print("{}:{} None".format(t.get_value("symbol"), jDate))
             dataRec = {}
             dataRec["transaction"] = t.info
             print("dataRec:{}".format(dataRec))
-            cache.fundsDataSave(t.get_value("symbol"),jDate,dataRec)
+            cache.fundsDataSave(t.get_value("symbol"), jDate, dataRec)
             # sys.exit(-1)
         else:
-            print("{}:{} {}".format(t.get_value("symbol"), jDate,resp))
-            if isinstance(resp,dict):
+            print("{}:{} {}".format(t.get_value("symbol"), jDate, resp))
+            if isinstance(resp, dict):
                 dataRec = resp.get("transaction")
                 revision = resp.get("_rev")
                 if dataRec == None:
