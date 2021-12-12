@@ -92,7 +92,10 @@ class StockCache:
             # Saturday or Sunday
             if dtTime.tm_wday <= 4:
                 # print( "weekday [{}] - {}:{}:{}".format( dtTime.tm_wday, dtTime.tm_year, dtTime.tm_mon, dtTime.tm_mday ) )
-                if ( datetime.date(dtTime.tm_year, dtTime.tm_mon, dtTime.tm_mday) not in self.nyseHolidays ):
+                if (
+                    datetime.date(dtTime.tm_year, dtTime.tm_mon, dtTime.tm_mday)
+                    not in self.nyseHolidays
+                ):
                     # print("not holiday {}".format(jDate))
                     return jDate
                 # else:
@@ -188,23 +191,30 @@ class StockCache:
     #    "limit": 5
     # }
     #
-    def couchFindByPartition(self, ticker, database, searchCritera ):
+    def couchFindByPartition(self, ticker, database, searchCritera):
 
-        if not isinstance(searchCritera,dict):
+        if not isinstance(searchCritera, dict):
             print("ERROR: Invalid Search Criteria: {}".format(searchCritera))
             return None
 
-        url = self.couchURL() + "/" + database + "/_partition/" + ticker.upper() + "/_find"
-        conn = common_request.CommonRequest("POST", url, self.couchHeader(),searchCritera)
-        if conn.Request("POST",url,self.couchHeader(),searchCritera):
+        url = (
+            self.couchURL()
+            + "/"
+            + database
+            + "/_partition/"
+            + ticker.upper()
+            + "/_find"
+        )
+        conn = common_request.CommonRequest(
+            "POST", url, self.couchHeader(), searchCritera
+        )
+        if conn.Request("POST", url, self.couchHeader(), searchCritera):
             data = json.loads(conn.ResponseData())
             conn.Close()
             return data
 
         print("Unable to Post Data", conn)
         return None
-
-
 
     def iexStockHistoryGet(self, ticker, types="chart&range=1y", token=None):
         # def GetIEXStockHistory(ticker, types="chart&range=5y", token=None):
@@ -280,7 +290,9 @@ class StockCache:
             # print("Saving History rev[{}]".format(revision))
             self.historyDataSave(ticker, jDate, response, revision)
 
-    def iexStockQuoteGet( self, ticker, types="quote,stats,news,dividends&range=1y&last=3", token=None ):
+    def iexStockQuoteGet(
+        self, ticker, types="quote,stats,news,dividends&range=1y&last=3", token=None
+    ):
 
         if len(ticker) > 4:
             print("Invalid Ticker [{}] for IEX".format(ticker))
@@ -403,7 +415,7 @@ class StockCache:
                     marketOpen = quoteData.get("isUSMarketOpen")
                     closePrice = quoteData.get("close")
                     # print("isUSMarketOpen: {}".format(str(marketOpen)))
-                    if closePrice != 'None' and marketOpen == False:  # should be False
+                    if closePrice != "None" and marketOpen == False:  # should be False
                         # print("Market not open, return saved result")
                         # at this point, the data in 'quotes' was current.
                         # Just return it to the user
@@ -457,7 +469,7 @@ class StockCache:
             # print("looking at history")
             response = self.historyDataRead(ticker, jDate)
 
-            if isinstance(response,dict):
+            if isinstance(response, dict):
                 quoteData = response.get("iex_quote")
                 if isinstance(quoteData, dict):
                     # Check the market open flag, If it's true, the market was
@@ -468,7 +480,7 @@ class StockCache:
                     #
                     marketOpen = quoteData.get("isUSMarketOpen")
                     closePrice = quoteData.get("close")
-                    print("marketOpen: {} close: {}".format(marketOpen,closePrice))
+                    print("marketOpen: {} close: {}".format(marketOpen, closePrice))
 
                     if marketOpen == False and closePrice != None:
                         # print("Returng reponse based in iex_quote")
@@ -484,7 +496,7 @@ class StockCache:
             # print("Checking Quote Data")
             response = self.quoteDataRead(ticker, jDate)
 
-            if isinstance(response,dict):
+            if isinstance(response, dict):
                 quoteData = response.get("quote")
                 if isinstance(quoteData, dict):
                     # Check the market open flag, If it's true, the market was
@@ -517,7 +529,7 @@ class StockCache:
         print("Returning {}".format(response))
         return response
 
-    def MutualFundsLookup(self,ticker, **kwargs):
+    def MutualFundsLookup(self, ticker, **kwargs):
 
         if len(ticker) <= 4:
             print("ERROR: {} is not a mutual fund".format(ticker))
@@ -547,7 +559,7 @@ class StockCache:
         # print("{} MutualFundsLookup [{}]".format(ticker,jDate))
 
         jDate = self.adjustForHolidaysAndWeekends(jDate)
-        return self.fundsDataRead(ticker,jDate)
+        return self.fundsDataRead(ticker, jDate)
 
     # This function is expecting a list of Json Objects such
     # as the the data from PortfolioValue and inserts into the
@@ -570,10 +582,10 @@ class StockCache:
             # Something was passed in
             if tDate != None and isinstance(tDate, time.struct_time):
                 # print("tDate:{}".format(str(tDate)))
-                print("Converting time",tDate)
+                print("Converting time", tDate)
                 jDate = self.jDateFromTime(tDate)
-            elif dDate != None and isinstance(dDate, datetime.date ):
-                print("Converting date",dDate)
+            elif dDate != None and isinstance(dDate, datetime.date):
+                print("Converting date", dDate)
                 tDate = dDate.timetuple()
                 jDate = self.jDateFromTime(tDate)
 
@@ -581,15 +593,15 @@ class StockCache:
             jDate = self.adjustForHolidaysAndWeekends(jDate)
 
             # else jDate was populated
-        #print(">>>> {}:{}".format(name,jDate))
+        # print(">>>> {}:{}".format(name,jDate))
 
         for k in dataSet:
             data = dataSet.get(k)
             # print(k,data)
 
             if len(k) < 5:
-                print("Stock",k)
-                resp = self.historyDataRead(k,jDate)
+                print("Stock", k)
+                resp = self.historyDataRead(k, jDate)
             else:
                 print("Mutual Fund", k)
                 resp = self.MutualFundsLookup(k, jul_date=jDate)
@@ -599,7 +611,7 @@ class StockCache:
                 resp = {}
                 resp[name] = data
                 revision = None
-            elif isinstance(resp,dict):
+            elif isinstance(resp, dict):
                 revision = resp.get("_rev")
                 mydata = resp.get(name)
                 if mydata == None:
@@ -610,7 +622,7 @@ class StockCache:
                     # TODO:  Look for changes
                     continue
             else:
-                print("Invalid response form cache({},jul_date={}".format(k,jDate))
+                print("Invalid response form cache({},jul_date={}".format(k, jDate))
 
             print("Saving {}:{}".format(k, jDate))
             if len(k) < 5:
@@ -619,7 +631,10 @@ class StockCache:
                 self.fundsDataSave(k, jDate, resp, revision)
 
         print("")
+
     print("all done")
+
+
 #
 #  This is the original function
 #
@@ -655,9 +670,6 @@ def CacheLookup(ticker, jDate=None):
     return None
 
 
-
-
-
 """
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 def testDates():
@@ -686,16 +698,12 @@ if __name__ == "__main__":
         print(status)
 
     selectorData = {
-        "selector": {
-           "key": {
-              "$lt": "HDBAL:2020032"
-           }
-        },
-        "sort":[{"key":"desc"}],
-        "limit": 2
+        "selector": {"key": {"$lt": "HDBAL:2020032"}},
+        "sort": [{"key": "desc"}],
+        "limit": 2,
     }
 
-    data = cache.couchFindByPartition("HDBAL","funds",selectorData)
+    data = cache.couchFindByPartition("HDBAL", "funds", selectorData)
     print(data)
     # exit(0)
     stocks = ["JNJ", "AAPL", "hd", "CTL"]
@@ -707,12 +715,10 @@ if __name__ == "__main__":
     # stocks = ["CSX", "AAPL", "BMY"]
     stocks = ["CTL"]
     # jDate = "2018090"  # Known Saturday
-    mDate = datetime.date(2020,10,30)
+    mDate = datetime.date(2020, 10, 30)
     for s in stocks:
         # print("jul_date {}:{}".format(s, cache.StockLookup(s, jul_date=jDate)))
         print("mDate {}:{}".format(mDate, cache.StockLookup(s, time=mDate.timetuple())))
-
-
 
     # import portfoliovalue
     # pv = portfoliovalue.PortfolioValue(filename="portfolio_value.csv",lookupfilename="lookup.csv")

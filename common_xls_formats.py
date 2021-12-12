@@ -210,7 +210,11 @@ class ColumnInfo:
                 return fValue
             except:
                 # write nothing
-                print("{} something is there, but its not a float[{}]".format(self.name,Value))
+                print(
+                    "{} something is there, but its not a float[{}]".format(
+                        self.name, Value
+                    )
+                )
                 return None
         else:
             return Value
@@ -299,7 +303,7 @@ class ColumnInfo:
             # print("{} - My size is at now {}".format(self.name,self.size))
             self.size = mySize
         # else:
-            # print("{} - Else My size is at now {}".format(self.name,self.size))
+        # print("{} - Else My size is at now {}".format(self.name,self.size))
 
     #
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -329,7 +333,7 @@ class ColumnInfo:
 
         num_commas = int((digits - 1) / 3)
 
-        myLen = myLen + digits + num_commas + 1 # add in the decimal point for float
+        myLen = myLen + digits + num_commas + 1  # add in the decimal point for float
         # print("{} Length for {} is {}".format(self.name,f,myLen))
         return myLen
 

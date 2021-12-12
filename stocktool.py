@@ -116,14 +116,25 @@ def printEntries(worksheet, entries, formats, startRow=0, startColumn=0):
     for ec in entryColumnInfo:
         ec.ColumnInfo.columnSetSize(1.4)
 
-def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, divData, startRow=0, startColumn=0):
+
+def printMatrix(
+    workbook,
+    worksheetName,
+    worksheet,
+    formats,
+    ticker,
+    histData,
+    divData,
+    startRow=0,
+    startColumn=0,
+):
 
     # print(str(histData))
     # print("printMatrix: {}".format(divData))
     # Create the column info
-    hdrs = [ "Stock", "Price", "Value",  "Quantity", "Dividends"]
-    jTags = [ "stock", "price", "value", "qty", "divs" ]
-    mTypes = [ "text", "current", "currency", "number", "currency"]
+    hdrs = ["Stock", "Price", "Value", "Quantity", "Dividends"]
+    jTags = ["stock", "price", "value", "qty", "divs"]
+    mTypes = ["text", "current", "currency", "number", "currency"]
     myColumn = startColumn
     myRow = startRow
 
@@ -133,23 +144,25 @@ def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, 
     for i in range(0, len(hdrs)):
         et = bdata.EntryType(hdrs[i], jTags[i], mTypes[i])
         entryTypes.append(et)
-        ci = common_xls_formats.ColumnInfo(worksheet,hdrs[i],i)
+        ci = common_xls_formats.ColumnInfo(worksheet, hdrs[i], i)
 
     # Write the headers
     for ec in entryTypes:
-        columnInfo = common_xls_formats.ColumnInfo( worksheet, ec.Header, myColumn, 1, 1 )
-        columnInfo.columnWrite( myRow, myColumn, ec.Header, "text", formats.headerFormat(), True )
+        columnInfo = common_xls_formats.ColumnInfo(worksheet, ec.Header, myColumn, 1, 1)
+        columnInfo.columnWrite(
+            myRow, myColumn, ec.Header, "text", formats.headerFormat(), True
+        )
         columns.append(columnInfo)
         myColumn = myColumn + 1
 
-    myColumn = startColumn # + 1
+    myColumn = startColumn  # + 1
     myRow = myRow + 1
     chartStartRow = myRow
     ci = columns[0]
     hasValue = False
     # History data is stored from the current to the oldest.
     # Let's print the
-    for i in range(len(histData.unitQuantity)-1, -1, -1):
+    for i in range(len(histData.unitQuantity) - 1, -1, -1):
 
         if hasValue == False and histData.Quantity(i) <= 0:
             continue
@@ -161,12 +174,16 @@ def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, 
         rowDateT = transaction.monthdelta(datetime.date.today(), -i)
 
         # print(colDateT)
-        if calendar.month_abbr[rowDateT.month] == "Jan" or i == startIndex: # len(histData.unitQuantity)-1:
-            rowHeader = (calendar.month_abbr[rowDateT.month] + "/" + str(rowDateT.year))
+        if (
+            calendar.month_abbr[rowDateT.month] == "Jan" or i == startIndex
+        ):  # len(histData.unitQuantity)-1:
+            rowHeader = calendar.month_abbr[rowDateT.month] + "/" + str(rowDateT.year)
         else:
             rowHeader = calendar.month_abbr[rowDateT.month]
 
-        ci.columnWrite(myRow, myColumn, rowHeader, "text", formats.textFormat(myRow), True)
+        ci.columnWrite(
+            myRow, myColumn, rowHeader, "text", formats.textFormat(myRow), True
+        )
         # print(">{}:({}.{}):{}".format(i,myRow,myColumn,rowHeader))
         myRow = myRow + 1
 
@@ -175,7 +192,6 @@ def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, 
     myRow = startRow + 1
 
     myColumn = startColumn
-
 
     for i in range(startIndex, -1, -1):
 
@@ -198,9 +214,9 @@ def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, 
                 print("Invalid colunm {}".format(hdrs[c]))
                 raise
 
-            ci.columnWrite(myRow,myColumn+c,value,mTypes[c],fmt )
+            ci.columnWrite(myRow, myColumn + c, value, mTypes[c], fmt)
 
-        myRow = myRow+1
+        myRow = myRow + 1
 
     for c in columns:
         c.columnSetSize(1.4)
@@ -209,24 +225,26 @@ def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, 
     colors = ["#4DA6FF", "#88FF4B", "#B30059", "#FF9900", "#FF9911"]
 
     # print(">{}".format(ticker.name))
-    for i in range(1,len(hdrs)):
+    for i in range(1, len(hdrs)):
 
         if hdrs[i] == "Dividends":
             myChart = workbook.add_chart({"type": "column"})
         else:
             myChart = workbook.add_chart({"type": "line"})
 
-        myChart.set_title({"name": "{} {} Chart".format(ticker.name,hdrs[i])})
+        myChart.set_title({"name": "{} {} Chart".format(ticker.name, hdrs[i])})
         myChart.set_size({"width": 900, "height": 300})
 
-        columnStart = xlsxwriter.utility.xl_col_to_name(startColumn) # this is where the months are
+        columnStart = xlsxwriter.utility.xl_col_to_name(
+            startColumn
+        )  # this is where the months are
         myLegendValues = (
             "='"
             + worksheetName
             + "'!$"
             + columnStart
             + "$"
-            + str(chartStartRow+1)
+            + str(chartStartRow + 1)
             + ":$"
             + columnStart
             + "$"
@@ -234,19 +252,18 @@ def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, 
         )
         # print("myLegendValues:{}".format(myLegendValues))
 
-
-        columnStart = xlsxwriter.utility.xl_col_to_name(startColumn + i )
+        columnStart = xlsxwriter.utility.xl_col_to_name(startColumn + i)
         myValues = (
-                "='"
-                + worksheetName
-                + "'!$"
-                + columnStart
-                + "$"
-                + str(chartStartRow+ 1 )
-                + ":$"
-                + columnStart
-                + "$"
-                + str(chartEndRow)
+            "='"
+            + worksheetName
+            + "'!$"
+            + columnStart
+            + "$"
+            + str(chartStartRow + 1)
+            + ":$"
+            + columnStart
+            + "$"
+            + str(chartEndRow)
         )
 
         myChart.add_series(
@@ -254,20 +271,22 @@ def printMatrix( workbook, worksheetName, worksheet, formats, ticker, histData, 
                 "name": hdrs[i],
                 "values": myValues,
                 "categories": myLegendValues,
-                "fill": {"color": colors[i]}
+                "fill": {"color": colors[i]},
             }
         )
 
-        myChart.set_x_axis({
-            'date_axis': True,
-            'minor_unit': 4,
-            'minor_unit_type': 'months',
-        })
+        myChart.set_x_axis(
+            {
+                "date_axis": True,
+                "minor_unit": 4,
+                "minor_unit_type": "months",
+            }
+        )
 
         # Insert the chart into the worksheet.
-        r = int ((i-1) % 2)
-        c = int ((i-1) / 2)
-        colName = xlsxwriter.utility.xl_col_to_name(startColumn + 5 + (c*7))
+        r = int((i - 1) % 2)
+        c = int((i - 1) / 2)
+        colName = xlsxwriter.utility.xl_col_to_name(startColumn + 5 + (c * 7))
 
         worksheet.insert_chart(colName + str(startRow + 2 + (r * 17)), myChart)
 
@@ -396,9 +415,8 @@ if __name__ == "__main__":
     pValues = pv.PortfolioValue(args.portfolio, args.lookup)
     pValues.WriteValuesWorksheet(workbook, formats)
     pValues.WriteLookupWorksheet(workbook, formats)
-    if hasattr(pValues,"created"):
+    if hasattr(pValues, "created"):
         cache.LoadCacheFromJson("portfolio_value", pValues.data, date=pValues.created)
-
 
     #
     # read in the transactions and write them to their own worksheet for any ad-hoc analysis.
@@ -929,7 +947,7 @@ if __name__ == "__main__":
 
     # Collect the Stock History
     # set up the matrix
-    hMatrix = stock_history.HistoryMatrix(workbook, formats, cache, 36, "months" )
+    hMatrix = stock_history.HistoryMatrix(workbook, formats, cache, 36, "months")
     hMatrix.CreateHistoryMatrix(T.transactions)
     # print("History Matrix:")
     # print(str(hMatrix))
@@ -971,17 +989,26 @@ if __name__ == "__main__":
             # print("key:{}:{}".format(key,T.getTickerDividends(key)))
             #
             dividendData = T.getTickerDividends(key)
-            if isinstance(dividendData,dict):
+            if isinstance(dividendData, dict):
                 dividendHistory = dividendData.get("dividends")
             else:
                 print("{} Missing dividend data".format(key))
                 dividendHistory = numpy.zeros((len(historyRow.unitQuantity) + 1))
 
-
-            printMatrix(workbook, worksheetName, worksheet,formats, t, historyRow, dividendHistory, 0, 1)
+            printMatrix(
+                workbook,
+                worksheetName,
+                worksheet,
+                formats,
+                t,
+                historyRow,
+                dividendHistory,
+                0,
+                1,
+            )
         else:
             print("Error")
-            break;
+            break
 
         entries = t.entryValues()
         printEntries(worksheet, entries, formats, 0, 6)

@@ -30,7 +30,7 @@ class CommonRequest:
 
         except Exception as e:
             print("Exception:" + str(e))
-            print("> ",self)
+            print("> ", self)
             print("Unexpected error:" + str(sys.exc_info()[0]))
             # self.connection.close()
             return False
@@ -115,7 +115,7 @@ class CommonRequest:
             # headers must be JSON
             self.headers = hdrs
 
-        if self.headers != None and not isinstance(self.headers,dict):
+        if self.headers != None and not isinstance(self.headers, dict):
             print("Something is wrong with the headers")
             print(self)
             return
@@ -203,7 +203,7 @@ class CommonRequest:
 if __name__ == "__main__":
 
     # conn = CommonRequest("cloud.iexapis.com",True)
-    token = os.getenv("TOKEN","junk")
+    token = os.getenv("TOKEN", "junk")
 
     url = "https://cloud.iexapis.com/v1/stock/HD/batch?types=quote&token=" + token
     # print(url)
@@ -212,11 +212,11 @@ if __name__ == "__main__":
         print("wtw?")
         sys.exit(-1)
 
-    if conn.Request(): # "GET", url):
-        print("success:",conn)
+    if conn.Request():  # "GET", url):
+        print("success:", conn)
         # print(conn.ResponseData())
     else:
-        print("error:",conn)
+        print("error:", conn)
         # print(conn.Status())
         # print(conn.ResponseData())
 
@@ -225,11 +225,11 @@ if __name__ == "__main__":
     # test deleting
     del conn
 
-    conn = CommonRequest("GET","http://localhost:5984")
-    if conn.Request(): #
-        print("success:",conn)
+    conn = CommonRequest("GET", "http://localhost:5984")
+    if conn.Request():  #
+        print("success:", conn)
         # print(conn.ResponseData())
     else:
-        print("error:",conn)
+        print("error:", conn)
         # print(conn.Status())
         # print(conn.ResponseData())

@@ -30,7 +30,7 @@ class PortfolioValue:
         "Symbol": "symbol",
         "Type": "type",
         "Price": "quote",
-        "Quote":"quote",
+        "Quote": "quote",
         "Price Day Change": "price_day_change",
         "Price Day Change (%)": "price_day_change_pct",
         "Shares": "shares",
@@ -54,24 +54,24 @@ class PortfolioValue:
         if self.lookupFilename != None:
             self.LoadLookup(lookupfilename)
 
-        if  self.portfolioFilename != None:
+        if self.portfolioFilename != None:
             self.LoadValues(portfoliofilename)
 
-
-
     def __str__(self):
-        myStr = self.filename \
-                + "\ncreated:" \
-                + str(self.created) \
-                + "\nheaders:" \
-                + str(self.headers) \
-                + "\nlabels:" \
-                + str(self.labels) \
-                + "\nlooksups:" \
-                + str(self.lookups) \
-                + "\ndata:" \
-                + str(self.data) \
-                + "."
+        myStr = (
+            self.filename
+            + "\ncreated:"
+            + str(self.created)
+            + "\nheaders:"
+            + str(self.headers)
+            + "\nlabels:"
+            + str(self.labels)
+            + "\nlooksups:"
+            + str(self.lookups)
+            + "\ndata:"
+            + str(self.data)
+            + "."
+        )
         return myStr
 
     def Headers(self):
@@ -123,11 +123,11 @@ class PortfolioValue:
             i = i + 1
 
             if foundHeader == False and len(row) == 1:
-                parts = row[0].split(':')
+                parts = row[0].split(":")
                 if parts[0] == "Created":
-                    print(">>",parts)
-                    date=parts[1].lstrip()
-                    self.created=datetime.datetime.strptime(date, "%Y-%m-%d").date()
+                    print(">>", parts)
+                    date = parts[1].lstrip()
+                    self.created = datetime.datetime.strptime(date, "%Y-%m-%d").date()
                     print("Created:{}".format(date))
 
                 continue
@@ -171,7 +171,7 @@ class PortfolioValue:
                     print("Found Header")
                     numFields = len(row)
                 else:
-                    print(">>>",row)
+                    print(">>>", row)
 
                 # print("{} : {} : {}".format(len(r),len(self.labels),len(self.headers)))
 
@@ -290,13 +290,15 @@ class PortfolioValue:
         for ci in columnInfo:
             ci.columnSetSize(1.3)
 
-    def LoadLookup(self,  lookupFilename = "lookup.csv"):
+    def LoadLookup(self, lookupFilename="lookup.csv"):
 
         # if we're calling this multiple times, basically create
         # a new json struct.
         self.lookups = {}
 
-        lookupReader = csv.reader(open(lookupFilename, newline=""), delimiter=",", quotechar='"')
+        lookupReader = csv.reader(
+            open(lookupFilename, newline=""), delimiter=",", quotechar='"'
+        )
         i = 0
         for row in lookupReader:
             i = i + 1
@@ -332,7 +334,9 @@ class PortfolioValue:
         for k in sorted(myKeys):
             v = self.lookups[k]
             ciKey.columnWrite(myRow, myColumn, k, "text", formats.textFormat(myRow))
-            ciValue.columnWrite(myRow, myColumn + 1, v, "text", formats.textFormat(myRow))
+            ciValue.columnWrite(
+                myRow, myColumn + 1, v, "text", formats.textFormat(myRow)
+            )
             myRow = myRow + 1
 
         ciKey.columnSetSize(1.4)
@@ -340,23 +344,30 @@ class PortfolioValue:
 
     def Lookups(self):
 
-        if hasattr(self,"lookups") and isinstance(self.lookups,dict):
+        if hasattr(self, "lookups") and isinstance(self.lookups, dict):
             return self.lookups
 
         return None
+
 
 if __name__ == "__main__":
 
     cache = stock_cache.StockCache()
 
-
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input","-i",help="Input CSV File",default="portfolio_value.csv")
-    parser.add_argument("--output","-o",help="Output XLSX File",default="portfolio_value.xlsx")
-    parser.add_argument("--lookup","-l",help="File containing lookups for translations",default="lookup.csv")
+    parser.add_argument(
+        "--input", "-i", help="Input CSV File", default="portfolio_value.csv"
+    )
+    parser.add_argument(
+        "--output", "-o", help="Output XLSX File", default="portfolio_value.xlsx"
+    )
+    parser.add_argument(
+        "--lookup",
+        "-l",
+        help="File containing lookups for translations",
+        default="lookup.csv",
+    )
     args = parser.parse_args()
-
 
     # print(args)
 
@@ -364,11 +375,11 @@ if __name__ == "__main__":
     formats = common_xls_formats.XLSFormats(workbook, 5)
 
     # load up the lookup table
-    pv = PortfolioValue(args.input,args.lookup)
+    pv = PortfolioValue(args.input, args.lookup)
     pv.WriteValuesWorksheet(workbook, formats)
     pv.WriteLookupWorksheet(workbook, formats)
 
-    if hasattr(pv,"created") and cache.isCouchDBUp() != None:
+    if hasattr(pv, "created") and cache.isCouchDBUp() != None:
         cache.LoadCacheFromJson("portfolio_value", pv.data, date=pv.created)
 
     print(str(pv))

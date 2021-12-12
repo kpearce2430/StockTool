@@ -92,10 +92,12 @@ class Transaction:
     def getAmount(self):
         if not hasattr(self, "amount"):
 
-            if self.get_value("type") == "Reinvest Dividend" \
-                    or self.get_value("type") == "Add Shares" \
-                    or self.get_value("type") == "Reinvest Long-term Capital Gain" \
-                    or self.get_value("type") == "Reinvest Short-term Capital Gain":
+            if (
+                self.get_value("type") == "Reinvest Dividend"
+                or self.get_value("type") == "Add Shares"
+                or self.get_value("type") == "Reinvest Long-term Capital Gain"
+                or self.get_value("type") == "Reinvest Short-term Capital Gain"
+            ):
                 self.amount = self.get_value("invest_amt")
             else:
                 self.amount = self.get_value("amount")
@@ -197,9 +199,9 @@ class Transactions:
                         row[symbolRow] = value
 
                 if (
-                        self.headers[j] == "Shares"
-                        or self.headers[j] == "Amount"
-                        or self.headers[j] == "Invest Amt"
+                    self.headers[j] == "Shares"
+                    or self.headers[j] == "Amount"
+                    or self.headers[j] == "Invest Amt"
                 ):
                     # Remove the commas
                     row[j] = row[j].replace(",", "")
@@ -304,7 +306,7 @@ class Transactions:
             myCol = myCol + 1
 
     def writeTransactions(
-            self, startRow=0, startColumn=0, worksheet=None, filterFunc=None, fArgs=None
+        self, startRow=0, startColumn=0, worksheet=None, filterFunc=None, fArgs=None
     ):
 
         if worksheet == None:
@@ -358,9 +360,15 @@ class Transactions:
         #  These are the types of transactions that are needed to fill out
         #  the dividend sheet
         # tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income"]
-        tTypes = ["Dividend Income", "Reinvest Dividend", "Interest Income",
-                  "Long-term Capital Gain", "Short-term Capital Gain",
-                  "Reinvest Long-term Capital Gain", "Reinvest Short-term Capital Gain"]
+        tTypes = [
+            "Dividend Income",
+            "Reinvest Dividend",
+            "Interest Income",
+            "Long-term Capital Gain",
+            "Short-term Capital Gain",
+            "Reinvest Long-term Capital Gain",
+            "Reinvest Short-term Capital Gain",
+        ]
 
         pickList = dict()
         pickList["type"] = tTypes
@@ -405,7 +413,7 @@ class Transactions:
 
             transDate = m.getDateTimeDate()
             tranMonthsAgo = (endDate.year - transDate.year) * 12 + (
-                    endDate.month - transDate.month
+                endDate.month - transDate.month
             )
 
             divSheet[tranMonthsAgo] += float(m.getAmount())
@@ -475,7 +483,7 @@ class Transactions:
             ci = self.divColumns[myCol]
             cName = xlsxwriter.utility.xl_col_to_name(myCol)
             myFormula = (
-                    "=SUM(" + cName + str(startRow + 2) + ":" + cName + str(myRow) + ")"
+                "=SUM(" + cName + str(startRow + 2) + ":" + cName + str(myRow) + ")"
             )
             ci.columnWrite(
                 myRow, myCol, myFormula, "formula", self.formats.accountingFormat(myRow)
@@ -502,29 +510,29 @@ class Transactions:
             columnEnd = xlsxwriter.utility.xl_col_to_name(seriesStopCol)
 
             myValues = (
-                    "="
-                    + myWorksheetName
-                    + "!$"
-                    + columnStart
-                    + "$"
-                    + str(myRow + 1)
-                    + ":$"
-                    + columnEnd
-                    + "$"
-                    + str(myRow + 1)
+                "="
+                + myWorksheetName
+                + "!$"
+                + columnStart
+                + "$"
+                + str(myRow + 1)
+                + ":$"
+                + columnEnd
+                + "$"
+                + str(myRow + 1)
             )
 
             myColValues = (
-                    "="
-                    + myWorksheetName
-                    + "!$"
-                    + columnStart
-                    + "$"
-                    + str(startRow + 1)
-                    + ":$"
-                    + columnEnd
-                    + "$"
-                    + str(startRow + 1)
+                "="
+                + myWorksheetName
+                + "!$"
+                + columnStart
+                + "$"
+                + str(startRow + 1)
+                + ":$"
+                + columnEnd
+                + "$"
+                + str(startRow + 1)
             )
             # print(myValues)
 
@@ -603,7 +611,6 @@ def returnTag(hdr):
     if idx >= len(tags):
         print("Error:  Tag length mismatch")
 
-
     return tags[idx]
 
 
@@ -673,7 +680,6 @@ def pickByFields(trans, fieldList):
                 # print("didn't find it")
                 return False
 
-
         elif trans.get_value(k) != v:
             return False
 
@@ -740,9 +746,18 @@ def monthdelta(date, delta):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", "-i", help="Input CSV File", default="transactions.csv")
-    parser.add_argument("--output", "-o", help="Output XLSX File", default="transactions.xlsx")
-    parser.add_argument("--lookup", "-l", help="File containing lookups for translations", default="lookup.csv")
+    parser.add_argument(
+        "--input", "-i", help="Input CSV File", default="transactions.csv"
+    )
+    parser.add_argument(
+        "--output", "-o", help="Output XLSX File", default="transactions.xlsx"
+    )
+    parser.add_argument(
+        "--lookup",
+        "-l",
+        help="File containing lookups for translations",
+        default="lookup.csv",
+    )
     args = parser.parse_args()
 
     lookUps = dict()
@@ -759,8 +774,19 @@ if __name__ == "__main__":
     # for the mutaul funds in the THD 401k.
     hd401k = {}
     hd401k["type"] = ["Buy", "Sell"]
-    hd401k["symbol"] = ["HDINT", "HDLCAP", "HD2030", "HDSCG", "HDSCV", "HDLCG", "HDBAL", "HDSCG", "HDMCV", "HDIEI",
-                        "HDMCI"]
+    hd401k["symbol"] = [
+        "HDINT",
+        "HDLCAP",
+        "HD2030",
+        "HDSCG",
+        "HDSCV",
+        "HDLCG",
+        "HDBAL",
+        "HDSCG",
+        "HDMCV",
+        "HDIEI",
+        "HDMCI",
+    ]
     hd401k["months"] = "37"
 
     myWorksheet = workbook.add_worksheet("HD 401k")
