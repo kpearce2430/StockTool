@@ -1,0 +1,5 @@
+xlsxwriter
+urllib3
+holidays
+numpy
+pandas_market_calendars
